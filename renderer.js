@@ -564,10 +564,6 @@ function closeModal() {
 btnCloseModal.forEach(btn => btn.addEventListener('click', closeModal));
 btnSaveAccount.addEventListener('click', saveAccount);
 
-modalAddAccount.addEventListener('click', (e) => {
-    if (e.target === modalAddAccount) closeModal();
-});
-
 btnClearLogs.addEventListener('click', () => {
     logsContainer.innerHTML = '';
     log('Logs cleared.');
