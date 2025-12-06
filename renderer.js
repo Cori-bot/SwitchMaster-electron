@@ -392,7 +392,7 @@ async function performSwitch(id, gameType, shouldLaunch) {
 }
 
 // Modal Listeners
-// "Oui, Lancer"
+// "Oui"
 btnConfirmLaunch.addEventListener('click', () => {
     if (pendingAccountId && pendingGameType) {
         modalLaunchGame.classList.remove('show');
