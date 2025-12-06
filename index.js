@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, safeStorage, shell, dialog, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, safeStorage, shell, dialog, clipboard, Tray, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs-extra');
 const yaml = require('yaml');
@@ -19,11 +19,14 @@ const PRIVATE_SETTINGS_FILE = 'RiotClientPrivateSettings.yaml';
 fs.ensureDirSync(APP_DATA_PATH);
 
 let mainWindow;
+let tray = null;
 let riotDataPath = DEFAULT_RIOT_DATA_PATH;
 let appConfig = {
     riotPath: DEFAULT_RIOT_DATA_PATH,
     theme: 'dark',
-    showLogs: true
+    showLogs: true,
+    minimizeToTray: true,
+    showQuitModal: true
 };
 
 let activeAccountId = null;
@@ -110,6 +113,59 @@ function createWindow() {
     });
 
     mainWindow.loadFile('index.html');
+
+    // Handle window close event
+    mainWindow.on('close', (event) => {
+        if (appConfig.showQuitModal) {
+            event.preventDefault();
+            mainWindow.webContents.send('show-quit-modal');
+        } else {
+            if (appConfig.minimizeToTray) {
+                event.preventDefault();
+                mainWindow.hide();
+            }
+            // If minimizeToTray is false, allow default quit behavior
+        }
+    });
+}
+
+// --- System Tray ---
+function createTray() {
+    const iconPath = path.join(__dirname, 'assets', 'logo.png');
+    tray = new Tray(iconPath);
+
+    const contextMenu = Menu.buildFromTemplate([
+        {
+            label: 'Afficher SwitchMaster',
+            click: () => {
+                mainWindow.show();
+                mainWindow.focus();
+            }
+        },
+        {
+            type: 'separator'
+        },
+        {
+            label: 'Quitter',
+            click: () => {
+                app.isQuitting = true;
+                app.quit();
+            }
+        }
+    ]);
+
+    tray.setToolTip('SwitchMaster');
+    tray.setContextMenu(contextMenu);
+
+    // Click on tray icon to show window
+    tray.on('click', () => {
+        if (mainWindow.isVisible()) {
+            mainWindow.focus();
+        } else {
+            mainWindow.show();
+            mainWindow.focus();
+        }
+    });
 }
 
 // --- App Lifecycle ---
@@ -136,6 +192,7 @@ function monitorRiotProcess() {
 app.whenReady().then(async () => {
     await loadConfig();
     createWindow();
+    createTray();
     monitorRiotProcess();
 
     const settingsPath = path.join(riotDataPath, PRIVATE_SETTINGS_FILE);
@@ -147,7 +204,10 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') app.quit();
+    // Don't quit on window close if minimizing to tray
+    if (process.platform !== 'darwin' && !appConfig.minimizeToTray) {
+        app.quit();
+    }
 });
 
 // --- IPC Handlers ---
@@ -442,4 +502,22 @@ ipcMain.handle('update-account-stats', async (event, accountId, stats) => {
         console.error('Error updating account stats:', error);
         throw error;
     }
+});
+
+// 10. Handle Quit Modal Choice
+ipcMain.handle('handle-quit-choice', async (event, { action, dontShowAgain }) => {
+    if (dontShowAgain) {
+        appConfig.showQuitModal = false;
+        await saveConfig(appConfig);
+    }
+
+    if (action === 'quit') {
+        app.isQuitting = true;
+        app.quit();
+    } else if (action === 'minimize') {
+        mainWindow.hide();
+    }
+    // action === 'cancel' does nothing
+
+    return true;
 });

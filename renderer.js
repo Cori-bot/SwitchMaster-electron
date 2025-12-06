@@ -28,6 +28,8 @@ const btnLaunchLoL = document.getElementById('launch-lol');
 const settingLogs = document.getElementById('setting-logs');
 const settingRiotPath = document.getElementById('setting-riot-path');
 const settingsSaveStatus = document.getElementById('settings-save-status');
+const settingShowQuitModal = document.getElementById('setting-show-quit-modal');
+const settingMinimizeToTray = document.getElementById('setting-minimize-to-tray');
 
 // Navigation Elements
 const navDashboard = document.getElementById('nav-dashboard');
@@ -52,6 +54,13 @@ let pendingDeleteAccountId = null;
 // Error Modal Elements
 const modalError = document.getElementById('error-modal');
 const btnCloseError = document.getElementById('btn-close-error');
+
+// Quit Modal Elements
+const modalQuit = document.getElementById('quit-modal');
+const btnQuitApp = document.getElementById('btn-quit-app');
+const btnQuitMinimize = document.getElementById('btn-quit-minimize');
+const btnQuitCancel = document.getElementById('btn-quit-cancel');
+const quitDontShowAgain = document.getElementById('quit-dont-show-again');
 
 // State
 let accounts = [];
@@ -512,6 +521,8 @@ async function loadSettings() {
     try {
         appConfig = await ipcRenderer.invoke('get-config');
         settingLogs.checked = appConfig.showLogs !== false;
+        settingShowQuitModal.checked = appConfig.showQuitModal !== false;
+        settingMinimizeToTray.checked = appConfig.minimizeToTray !== false;
 
         let currentPath = appConfig.riotPath || "";
         const defaultPath = "C:\\Riot Games\\Riot Client\\RiotClientServices.exe";
@@ -541,7 +552,9 @@ async function saveSettings() {
     appConfig = {
         theme: 'dark', // Force dark
         showLogs: settingLogs.checked,
-        riotPath: settingRiotPath.value.trim()
+        riotPath: settingRiotPath.value.trim(),
+        showQuitModal: settingShowQuitModal.checked,
+        minimizeToTray: settingMinimizeToTray.checked
     };
     await ipcRenderer.invoke('save-config', appConfig);
 
@@ -562,6 +575,10 @@ settingRiotPath.addEventListener('input', () => {
     clearTimeout(window.saveTimeout);
     window.saveTimeout = setTimeout(saveSettings, 500);
 });
+
+// Tray settings auto-save
+settingShowQuitModal.addEventListener('change', saveSettings);
+settingMinimizeToTray.addEventListener('change', saveSettings);
 
 // Browse Button Logic
 const btnBrowsePath = document.getElementById('btn-browse-path');
@@ -667,3 +684,36 @@ async function refreshAllStats() {
     }
 }
 setInterval(refreshAllStats, 5 * 60 * 1000);
+
+// --- Quit Modal Logic ---
+// Listen for quit modal trigger from main process
+ipcRenderer.on('show-quit-modal', () => {
+    modalQuit.classList.add('show');
+    quitDontShowAgain.checked = false; // Reset checkbox
+});
+
+// Quit button - close app completely
+btnQuitApp.addEventListener('click', async () => {
+    const dontShowAgain = quitDontShowAgain.checked;
+    modalQuit.classList.remove('show');
+    await ipcRenderer.invoke('handle-quit-choice', { action: 'quit', dontShowAgain });
+});
+
+// Minimize button - hide to tray
+btnQuitMinimize.addEventListener('click', async () => {
+    const dontShowAgain = quitDontShowAgain.checked;
+    modalQuit.classList.remove('show');
+    await ipcRenderer.invoke('handle-quit-choice', { action: 'minimize', dontShowAgain });
+});
+
+// Cancel button - just close modal
+btnQuitCancel.addEventListener('click', () => {
+    modalQuit.classList.remove('show');
+});
+
+// Close modal when clicking outside
+modalQuit.addEventListener('click', (e) => {
+    if (e.target === modalQuit) {
+        modalQuit.classList.remove('show');
+    }
+});

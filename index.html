@@ -102,6 +102,20 @@
                         </div>
 
                         <div class="setting-item">
+                            <label>Comportement de fermeture</label>
+                            <label class="checkbox-wrapper" for="setting-show-quit-modal">
+                                <input type="checkbox" id="setting-show-quit-modal">
+                                <span class="checkbox-visual"></span>
+                                <span class="checkbox-label">Afficher la confirmation de fermeture</span>
+                            </label>
+                            <label class="checkbox-wrapper" for="setting-minimize-to-tray" style="margin-top: 10px;">
+                                <input type="checkbox" id="setting-minimize-to-tray">
+                                <span class="checkbox-visual"></span>
+                                <span class="checkbox-label">Réduire dans la barre système au lieu de quitter</span>
+                            </label>
+                        </div>
+
+                        <div class="setting-item">
                             <label>Riot Client Path</label>
                             <div class="input-group" style="display: flex; gap: 10px; margin-top: 5px;">
                                 <input type="text" id="setting-riot-path"
@@ -256,7 +270,8 @@
                 <h3 id="error-modal-title" style="font-size: 20px;">Erreur</h3>
             </div>
             <div class="modal-body">
-                <p id="error-modal-message" style="color: var(--text-muted); margin-bottom: 24px;">Erreur, les identifiants renseignés ne sont pas corrects.</p>
+                <p id="error-modal-message" style="color: var(--text-muted); margin-bottom: 24px;">Erreur, les
+                    identifiants renseignés ne sont pas corrects.</p>
                 <div class="modal-footer" style="justify-content: center; margin-top: 0;">
                     <button id="btn-close-error" class="btn-primary" style="width: 120px;">OK</button>
                 </div>
@@ -264,7 +279,36 @@
         </div>
     </div>
 
+    <!-- Quit/Minimize Modal -->
+    <div class="modal-overlay" id="quit-modal">
+        <div class="modal" style="width: 450px; text-align: center;">
+            <div class="modal-header" style="justify-content: center; margin-bottom: 10px;">
+                <h3 style="font-size: 20px;">Quitter l'application ?</h3>
+            </div>
+            <div class="modal-body">
+                <p style="color: var(--text-muted); margin-bottom: 24px;">
+                    Voulez-vous quitter complètement l'application ou la réduire dans la barre système ?
+                </p>
+
+                <label class="checkbox-wrapper" for="quit-dont-show-again"
+                    style="margin-bottom: 24px; justify-content: center;">
+                    <input type="checkbox" id="quit-dont-show-again">
+                    <span class="checkbox-visual"></span>
+                    <span class="checkbox-label">Ne plus afficher ce message</span>
+                </label>
+
+                <div class="modal-footer" style="justify-content: center; margin-top: 0; gap: 10px;">
+                    <button id="btn-quit-cancel" class="btn-secondary" style="width: 120px;">Annuler</button>
+                    <button id="btn-quit-minimize" class="btn-primary" style="width: 140px;">Réduire</button>
+                    <button id="btn-quit-app" class="btn-primary"
+                        style="width: 120px; background-color: #ff4655;">Quitter</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="renderer.js"></script>
 </body>
+
 
 </html>
