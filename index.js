@@ -26,7 +26,9 @@ let appConfig = {
     theme: 'dark',
     showLogs: true,
     minimizeToTray: true,
-    showQuitModal: true
+    showQuitModal: true,
+    autoStart: false,
+    lastAccountId: null
 };
 
 let activeAccountId = null;
@@ -102,6 +104,8 @@ function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1000,
         height: 700,
+        minWidth: 600,
+        minHeight: 600,
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
@@ -116,6 +120,11 @@ function createWindow() {
 
     // Handle window close event
     mainWindow.on('close', (event) => {
+        // Allow quit if explicitly requested
+        if (app.isQuitting) {
+            return;
+        }
+
         if (appConfig.showQuitModal) {
             event.preventDefault();
             mainWindow.webContents.send('show-quit-modal');
@@ -130,21 +139,64 @@ function createWindow() {
 }
 
 // --- System Tray ---
-function createTray() {
-    const iconPath = path.join(__dirname, 'assets', 'logo.png');
-    tray = new Tray(iconPath);
+async function updateTrayMenu() {
+    if (!tray) {
+        const iconPath = path.join(__dirname, 'assets', 'logo.png');
+        tray = new Tray(iconPath);
+        tray.setToolTip('SwitchMaster');
 
-    const contextMenu = Menu.buildFromTemplate([
+        // Click on tray icon to show window
+        tray.on('click', () => {
+            if (mainWindow.isVisible()) {
+                mainWindow.focus();
+            } else {
+                mainWindow.show();
+                mainWindow.focus();
+            }
+        });
+    }
+
+    // Build menu items
+    const menuItems = [
         {
             label: 'Afficher SwitchMaster',
             click: () => {
                 mainWindow.show();
                 mainWindow.focus();
             }
-        },
-        {
-            type: 'separator'
-        },
+        }
+    ];
+
+    // Add quick connect if there's a last account
+    if (appConfig.lastAccountId) {
+        try {
+            const accounts = await loadAccountsMeta();
+            const lastAccount = accounts.find(a => a.id === appConfig.lastAccountId);
+            if (lastAccount) {
+                menuItems.push(
+                    { type: 'separator' },
+                    {
+                        label: `Connecter: ${lastAccount.name}`,
+                        click: async () => {
+                            try {
+                                // Trigger the switch account handler
+                                const result = await ipcMain.emit('switch-account-trigger', lastAccount.id);
+                                mainWindow.webContents.send('quick-connect-triggered', lastAccount.id);
+                            } catch (err) {
+                                console.error('Quick connect error:', err);
+                            }
+                        }
+                    }
+                );
+            }
+        } catch (err) {
+            console.error('Error loading accounts for tray menu:', err);
+        }
+    }
+
+    // Add quit button
+    menuItems.push(
+        { type: 'separator' },
         {
             label: 'Quitter',
             click: () => {
@@ -152,19 +204,16 @@ function createTray() {
                 app.quit();
             }
         }
-    ]);
+    );
 
-    tray.setToolTip('SwitchMaster');
-    tray.setContextMenu(contextMenu);
+    tray.setContextMenu(Menu.buildFromTemplate(menuItems));
+}
 
-    // Click on tray icon to show window
-    tray.on('click', () => {
-        if (mainWindow.isVisible()) {
-            mainWindow.focus();
-        } else {
-            mainWindow.show();
-            mainWindow.focus();
-        }
+// Auto-start functionality
+function setAutoStart(enable) {
+    app.setLoginItemSettings({
+        openAtLogin: enable,
+        path: process.execPath
     });
 }
 
@@ -192,7 +241,7 @@ function monitorRiotProcess() {
 app.whenReady().then(async () => {
     await loadConfig();
     createWindow();
-    createTray();
+    updateTrayMenu();
     monitorRiotProcess();
 
     const settingsPath = path.join(riotDataPath, PRIVATE_SETTINGS_FILE);
@@ -417,6 +466,9 @@ ipcMain.handle('switch-account', async (event, id) => {
     }
 
     activeAccountId = id;
+    appConfig.lastAccountId = id;
+    await saveConfig(appConfig);
+    updateTrayMenu(); // Update tray menu with new last account
     return { success: true };
 });
 
@@ -519,5 +571,11 @@ ipcMain.handle('handle-quit-choice', async (event, { action, dontShowAgain }) =>
     }
     // action === 'cancel' does nothing
 
+    return true;
+});
+
+// 11. Set Auto-Start
+ipcMain.handle('set-auto-start', async (event, enable) => {
+    setAutoStart(enable);
     return true;
 });

@@ -443,6 +443,78 @@ body {
     flex-shrink: 0;
 }
 
+/* Notification System */
+.notification-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 2000;
+}
+
+.notification-toast {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 12px 20px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    min-width: 250px;
+    transform: translateX(100%);
+    opacity: 0;
+    animation: slideIn 0.3s forwards ease-out;
+}
+
+.notification-toast.closing {
+    animation: slideOut 0.3s forwards ease-in;
+}
+
+.notification-toast.success {
+    border-left: 4px solid var(--success);
+}
+
+.notification-toast.error {
+    border-left: 4px solid #ff4655;
+}
+
+.notification-toast.info {
+    border-left: 4px solid var(--primary);
+}
+
+.notification-message {
+    font-size: 14px;
+    color: var(--text-main);
+    font-weight: 500;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
 .menu-item-danger {
     color: #ff4655;
 }

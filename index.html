@@ -113,6 +113,11 @@
                                 <span class="checkbox-visual"></span>
                                 <span class="checkbox-label">Réduire dans la barre système au lieu de quitter</span>
                             </label>
+                            <label class="checkbox-wrapper" for="setting-auto-start" style="margin-top: 10px;">
+                                <input type="checkbox" id="setting-auto-start">
+                                <span class="checkbox-visual"></span>
+                                <span class="checkbox-label">Lancer au démarrage de Windows</span>
+                            </label>
                         </div>
 
                         <div class="setting-item">
@@ -133,8 +138,6 @@
                                 </button>
                             </div>
                             <p class="setting-hint">Chemin vers l'exéaqcutable RiotClientServices.exe</p>
-                            <span id="settings-save-status" class="save-status"
-                                style="display: block; margin-top: 10px; color: var(--success); font-size: 14px; opacity: 0; transition: opacity 0.3s; font-weight: 500;"></span>
                         </div>
 
                         <div class="setting-item">
@@ -306,6 +309,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Custom Notification Container -->
+    <div id="notification-container" class="notification-container"></div>
 
     <script src="renderer.js"></script>
 </body>

@@ -27,9 +27,9 @@ const btnLaunchLoL = document.getElementById('launch-lol');
 // Settings Elements
 const settingLogs = document.getElementById('setting-logs');
 const settingRiotPath = document.getElementById('setting-riot-path');
-const settingsSaveStatus = document.getElementById('settings-save-status');
 const settingShowQuitModal = document.getElementById('setting-show-quit-modal');
 const settingMinimizeToTray = document.getElementById('setting-minimize-to-tray');
+const settingAutoStart = document.getElementById('setting-auto-start');
 
 // Navigation Elements
 const navDashboard = document.getElementById('nav-dashboard');
@@ -74,6 +74,39 @@ function log(message) {
     div.textContent = `[${time}] ${message}`;
     logsContainer.appendChild(div);
     logsContainer.scrollTop = logsContainer.scrollHeight;
+}
+
+// --- Notifications ---
+function showNotification(message, type = 'info') {
+    const container = document.getElementById('notification-container');
+    const toast = document.createElement('div');
+    toast.className = `notification-toast ${type}`;
+
+    let icon = '';
+    if (type === 'success') icon = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--success')}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+    `;
+    else if (type === 'error') icon = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff4655" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+    `;
+    else icon = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--primary')}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+    `;
+
+    toast.innerHTML = `
+        ${icon}
+        <span class="notification-message">${message}</span>
+    `;
+
+    container.appendChild(toast);
+
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        toast.classList.add('closing');
+        toast.addEventListener('animationend', () => {
+            toast.remove();
+        });
+    }, 3000);
 }
 
 // --- UI Rendering ---
@@ -521,8 +554,9 @@ async function loadSettings() {
     try {
         appConfig = await ipcRenderer.invoke('get-config');
         settingLogs.checked = appConfig.showLogs !== false;
-        settingShowQuitModal.checked = appConfig.showQuitModal !== false;
-        settingMinimizeToTray.checked = appConfig.minimizeToTray !== false;
+        settingShowQuitModal.checked = appConfig.showQuitModal === true || appConfig.showQuitModal === undefined;
+        settingMinimizeToTray.checked = appConfig.minimizeToTray === true || appConfig.minimizeToTray === undefined;
+        settingAutoStart.checked = appConfig.autoStart === true;
 
         let currentPath = appConfig.riotPath || "";
         const defaultPath = "C:\\Riot Games\\Riot Client\\RiotClientServices.exe";
@@ -549,20 +583,24 @@ async function loadSettings() {
 }
 
 async function saveSettings() {
-    appConfig = {
+    const newConfig = {
         theme: 'dark', // Force dark
         showLogs: settingLogs.checked,
         riotPath: settingRiotPath.value.trim(),
         showQuitModal: settingShowQuitModal.checked,
-        minimizeToTray: settingMinimizeToTray.checked
+        minimizeToTray: settingMinimizeToTray.checked,
+        autoStart: settingAutoStart.checked
     };
-    await ipcRenderer.invoke('save-config', appConfig);
 
-    // Visual feedback
-    settingsSaveStatus.textContent = '✓ Paramètres sauvegardés!';
-    settingsSaveStatus.style.opacity = '1';
-    setTimeout(() => { settingsSaveStatus.style.opacity = '0'; }, 2000);
+    await ipcRenderer.invoke('save-config', newConfig);
+
+    // Handle auto-start separately
+    await ipcRenderer.invoke('set-auto-start', settingAutoStart.checked);
+
+    // Notification
+    showNotification('Paramètres sauvegardés !', 'success');
 }
+
 
 // Auto-save listeners
 settingLogs.addEventListener('change', () => {
@@ -579,6 +617,7 @@ settingRiotPath.addEventListener('input', () => {
 // Tray settings auto-save
 settingShowQuitModal.addEventListener('change', saveSettings);
 settingMinimizeToTray.addEventListener('change', saveSettings);
+settingAutoStart.addEventListener('change', saveSettings);
 
 // Browse Button Logic
 const btnBrowsePath = document.getElementById('btn-browse-path');
@@ -715,5 +754,21 @@ btnQuitCancel.addEventListener('click', () => {
 modalQuit.addEventListener('click', (e) => {
     if (e.target === modalQuit) {
         modalQuit.classList.remove('show');
+    }
+});
+
+// --- Quick Connect from Tray ---
+ipcRenderer.on('quick-connect-triggered', async (event, accountId) => {
+    const account = accounts.find(a => a.id === accountId);
+    if (!account) return;
+
+    log(`🚀 Quick Connect: ${account.name}...`);
+
+    try {
+        await ipcRenderer.invoke('switch-account', accountId);
+        log(`✓ Connecté à ${account.name}`);
+        checkStatus();
+    } catch (err) {
+        log(`❌ Erreur: ${err.message}`);
     }
 });
