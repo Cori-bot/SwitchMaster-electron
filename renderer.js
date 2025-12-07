@@ -694,11 +694,13 @@ function switchView(viewName) {
         viewSettings.style.display = 'none';
         navDashboard.classList.add('active');
         navSettings.classList.remove('active');
+        btnAddAccount.style.display = 'flex';
     } else if (viewName === 'settings') {
         viewDashboard.style.display = 'none';
         viewSettings.style.display = 'block';
         navDashboard.classList.remove('active');
         navSettings.classList.add('active');
+        btnAddAccount.style.display = 'none';
     }
 }
 

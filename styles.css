@@ -186,6 +186,8 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 32px;
+    min-height: 48px;
+    /* Prevent layout shift when button is hidden */
 }
 
 .status-indicator {
