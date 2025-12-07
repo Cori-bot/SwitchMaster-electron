@@ -1058,3 +1058,36 @@ body {
 .modal .checkbox-visual {
     flex-shrink: 0;
 }
+
+/* Global Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+
+.fade-out {
+    animation: fadeOut 0.2s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}

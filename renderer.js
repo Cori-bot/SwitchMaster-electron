@@ -688,20 +688,39 @@ togglePasswordBtn.addEventListener('click', () => {
 });
 
 // Navigation
+// Navigation
 function switchView(viewName) {
-    if (viewName === 'dashboard') {
-        viewDashboard.style.display = 'block';
-        viewSettings.style.display = 'none';
-        navDashboard.classList.add('active');
-        navSettings.classList.remove('active');
-        btnAddAccount.style.display = 'flex';
-    } else if (viewName === 'settings') {
-        viewDashboard.style.display = 'none';
-        viewSettings.style.display = 'block';
-        navDashboard.classList.remove('active');
-        navSettings.classList.add('active');
-        btnAddAccount.style.display = 'none';
-    }
+    const currentView = navDashboard.classList.contains('active') ? viewDashboard : viewSettings;
+    const targetView = viewName === 'dashboard' ? viewDashboard : viewSettings;
+
+    // Correct logic: if we are already on the view, do nothing
+    if (viewName === 'dashboard' && navDashboard.classList.contains('active')) return;
+    if (viewName === 'settings' && navSettings.classList.contains('active')) return;
+
+    // Animation Flow
+    currentView.classList.remove('fade-in');
+    currentView.classList.add('fade-out');
+
+    // Wait for fade out
+    setTimeout(() => {
+        currentView.style.display = 'none';
+        currentView.classList.remove('fade-out');
+
+        // Show new view
+        targetView.style.display = 'block';
+        targetView.classList.add('fade-in');
+
+        // Update Nav State
+        if (viewName === 'dashboard') {
+            navDashboard.classList.add('active');
+            navSettings.classList.remove('active');
+            btnAddAccount.style.display = 'flex';
+        } else {
+            navDashboard.classList.remove('active');
+            navSettings.classList.add('active');
+            btnAddAccount.style.display = 'none';
+        }
+    }, 200); // 200ms matches CSS fadeOut duration
 }
 
 navDashboard.addEventListener('click', () => switchView('dashboard'));
