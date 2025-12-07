@@ -164,6 +164,15 @@ async function updateTrayMenu() {
                 mainWindow.show();
                 mainWindow.focus();
             }
+        },
+        { type: 'separator' },
+        {
+            label: 'Lancer League of Legends',
+            click: () => launchGame('league')
+        },
+        {
+            label: 'Lancer Valorant',
+            click: () => launchGame('valorant')
         }
     ];
 
@@ -472,8 +481,8 @@ ipcMain.handle('switch-account', async (event, id) => {
     return { success: true };
 });
 
-// 6. Launch Game
-ipcMain.handle('launch-game', async (event, gameId) => {
+// Helper function to launch game
+async function launchGame(gameId) {
     let clientPath = appConfig.riotPath || "C:\\Riot Games\\Riot Client\\RiotClientServices.exe";
     if (!clientPath.endsWith('.exe')) {
         clientPath = path.join(clientPath, 'RiotClientServices.exe');
@@ -491,6 +500,11 @@ ipcMain.handle('launch-game', async (event, gameId) => {
     }
 
     spawn(clientPath, args, { detached: true, stdio: 'ignore' }).unref();
+}
+
+// 6. Launch Game
+ipcMain.handle('launch-game', async (event, gameId) => {
+    await launchGame(gameId);
     return true;
 });
 
