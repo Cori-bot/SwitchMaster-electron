@@ -141,7 +141,7 @@ function renderAccounts() {
 
     if (accounts.length === 0) {
         accountsList.innerHTML = `
-            <div class="empty-state-container" style="grid-column: 1/-1; display: flex; justify-content: center; padding: 40px;">
+            <div class="empty-state-container">
                 <button id="btn-empty-add" class="btn-empty-state">
                     <div class="empty-icon">+</div>
                     <div class="empty-text">Ajouter un premier compte</div>
