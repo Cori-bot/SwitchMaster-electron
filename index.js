@@ -196,12 +196,11 @@ function createWindow() {
         minWidth: 600,
         minHeight: 600,
         webPreferences: {
-            // Renderer actuel utilise require('electron'), donc on garde nodeIntegration pour l'instant
-            nodeIntegration: true,
-            // À moyen terme : passer à true + preload sécurisé
-            contextIsolation: false,
-            // Bonnes pratiques sécurité : remote est désactivé explicitement
+            // Nouveau modèle sécurisé : pas de nodeIntegration, preload isolé
+            nodeIntegration: false,
+            contextIsolation: true,
             enableRemoteModule: false,
+            preload: path.join(__dirname, 'preload.js'),
         },
         backgroundColor: '#121212',
         frame: true,

@@ -1,4 +1,5 @@
-const { ipcRenderer } = require('electron');
+// IPC sécurisé exposé par preload.js
+const ipcRenderer = window.ipc;
 
 // DOM Elements
 const accountsList = document.getElementById('accounts-list');
