@@ -32,6 +32,7 @@ const settingRiotPath = document.getElementById('setting-riot-path');
 const settingShowQuitModal = document.getElementById('setting-show-quit-modal');
 const settingMinimizeToTray = document.getElementById('setting-minimize-to-tray');
 const settingAutoStart = document.getElementById('setting-auto-start');
+const btnBrowsePath = document.getElementById('btn-browse-path');
 
 // Navigation Elements
 const navDashboard = document.getElementById('nav-dashboard');
@@ -542,6 +543,17 @@ if (btnBrowseImage) {
     });
 }
 
+// Browse Riot Path
+if (btnBrowsePath) {
+    btnBrowsePath.addEventListener('click', async () => {
+        const path = await ipcRenderer.invoke('select-riot-path');
+        if (path) {
+            settingRiotPath.value = path;
+            saveSettings();
+        }
+    });
+}
+
 // Modal Buttons
 btnConfirmLaunch.addEventListener('click', () => {
     if (pendingAccountId && pendingGameType) {
@@ -632,7 +644,10 @@ async function loadSettings() {
         settingLogs.checked = appConfig.showLogs !== false;
         settingShowQuitModal.checked = appConfig.showQuitModal === true || appConfig.showQuitModal === undefined;
         settingMinimizeToTray.checked = appConfig.minimizeToTray === true || appConfig.minimizeToTray === undefined;
-        settingAutoStart.checked = appConfig.autoStart === true;
+        
+        // Get actual auto-start status from system
+        const autoStartStatus = await ipcRenderer.invoke('get-auto-start-status');
+        settingAutoStart.checked = autoStartStatus.enabled;
 
         if (appConfig.security && appConfig.security.enabled) {
             settingSecurityEnable.checked = true;
@@ -884,3 +899,39 @@ loadSettings();
 checkSecurity();
 loadAccounts();
 log('Application started.');
+
+// Listen for quit modal from main process
+ipcRenderer.on('show-quit-modal', () => {
+    if (modalQuit) modalQuit.classList.add('show');
+});
+
+// Quit Modal Buttons
+if (btnQuitApp) {
+    btnQuitApp.addEventListener('click', async () => {
+        const dontShowAgain = quitDontShowAgain ? quitDontShowAgain.checked : false;
+        await ipcRenderer.invoke('handle-quit-choice', { action: 'quit', dontShowAgain });
+        modalQuit.classList.remove('show');
+    });
+}
+
+if (btnQuitMinimize) {
+    btnQuitMinimize.addEventListener('click', async () => {
+        const dontShowAgain = quitDontShowAgain ? quitDontShowAgain.checked : false;
+        await ipcRenderer.invoke('handle-quit-choice', { action: 'minimize', dontShowAgain });
+        modalQuit.classList.remove('show');
+    });
+}
+
+if (btnQuitCancel) {
+    btnQuitCancel.addEventListener('click', () => {
+        modalQuit.classList.remove('show');
+    });
+}
+
+if (modalQuit) {
+    modalQuit.addEventListener('click', (e) => {
+        if (e.target === modalQuit) {
+            modalQuit.classList.remove('show');
+        }
+    });
+}

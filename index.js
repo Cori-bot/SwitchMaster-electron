@@ -15,8 +15,25 @@ const CONFIG_FILE = path.join(APP_DATA_PATH, 'config.json');
 const DEFAULT_RIOT_DATA_PATH = "C:\\Riot Games\\Riot Client\\RiotClientServices.exe";
 const PRIVATE_SETTINGS_FILE = 'RiotClientPrivateSettings.yaml';
 
+// Get scripts path (works in both dev and production)
+const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+const SCRIPTS_PATH = isDev 
+    ? path.join(__dirname, 'assets', 'scripts')
+    : path.join(process.resourcesPath, 'scripts');
+
 // Ensure User Data Directory Exists
 fs.ensureDirSync(APP_DATA_PATH);
+
+// Verify scripts exist
+const automateLoginScript = path.join(SCRIPTS_PATH, 'automate_login.ps1');
+const detectGamesScript = path.join(SCRIPTS_PATH, 'detect_games.ps1');
+
+if (!fs.existsSync(automateLoginScript)) {
+    console.error(`Automation script not found: ${automateLoginScript}`);
+}
+if (!fs.existsSync(detectGamesScript)) {
+    console.error(`Detection script not found: ${detectGamesScript}`);
+}
 
 let mainWindow;
 let tray = null;
@@ -277,10 +294,30 @@ async function updateTrayMenu() {
 
 // Auto-start functionality
 function setAutoStart(enable) {
-    app.setLoginItemSettings({
-        openAtLogin: enable,
-        path: process.execPath
-    });
+    try {
+        // For electron-builder, we need to handle both dev and production cases
+        const settings = {
+            openAtLogin: enable
+        };
+
+        // In production (packaged app), electron-builder handles the path automatically
+        // In development, we need to specify the electron executable
+        if (!app.isPackaged) {
+            settings.path = process.execPath;
+            // Also specify args for development
+            settings.args = ['.'];
+        }
+
+        app.setLoginItemSettings(settings);
+        console.log(`Auto-start ${enable ? 'enabled' : 'disabled'}`);
+        
+        // Verify the setting was applied
+        const currentSettings = app.getLoginItemSettings();
+        console.log('Current login item settings:', currentSettings);
+        
+    } catch (error) {
+        console.error('Error setting auto-start:', error);
+    }
 }
 
 // --- App Lifecycle ---
@@ -458,7 +495,7 @@ ipcMain.handle('select-riot-path', async () => {
 // 4b. Auto Detect Paths
 ipcMain.handle('auto-detect-paths', async () => {
     try {
-        const psScript = path.join(__dirname, 'assets', 'scripts', 'detect_games.ps1');
+        const psScript = path.join(SCRIPTS_PATH, 'detect_games.ps1');
 
         return new Promise((resolve, reject) => {
             const ps = spawn('powershell.exe', ['-ExecutionPolicy', 'Bypass', '-File', psScript]);
@@ -539,7 +576,7 @@ ipcMain.handle('switch-account', async (event, id) => {
 
     // Automation
     try {
-        const psScript = path.join(__dirname, 'assets', 'scripts', 'automate_login.ps1');
+        const psScript = path.join(SCRIPTS_PATH, 'automate_login.ps1');
 
         // Helper to run PS
         const runPs = (action) => {
@@ -706,4 +743,18 @@ ipcMain.handle('handle-quit-choice', async (event, { action, dontShowAgain }) =>
 ipcMain.handle('set-auto-start', async (event, enable) => {
     setAutoStart(enable);
     return true;
+});
+
+// 12. Get Auto-Start Status
+ipcMain.handle('get-auto-start-status', () => {
+    try {
+        const settings = app.getLoginItemSettings();
+        return {
+            enabled: settings.openAtLogin || false,
+            wasOpenedAtLogin: settings.wasOpenedAtLogin || false
+        };
+    } catch (error) {
+        console.error('Error getting auto-start status:', error);
+        return { enabled: false, wasOpenedAtLogin: false };
+    }
 });

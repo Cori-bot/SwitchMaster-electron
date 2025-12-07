@@ -1,6 +1,6 @@
 {
     "name": "switchmaster",
-    "version": "2.1.0",
+    "version": "2.2.0",
     "description": "SwitchMaster : Multi-Account Switcher",
     "main": "index.js",
     "scripts": {
@@ -17,7 +17,13 @@
         "win": {
             "target": "portable",
             "icon": "assets/logo.ico"
-        }
+        },
+        "extraResources": [
+            {
+                "from": "assets/scripts",
+                "to": "scripts"
+            }
+        ]
     },
     "keywords": ["riot","riot games","games","account","switcher","multi-account","switchmaster","riot-id","riot-switcher","riot-account-switcher","valorant","valorant switcher","valorant account switcher","league of legends","league of legends switcher","league of legends account switcher","league of legends switcher","league of legends account switcher","league of legends switcher","league of legends account switcher"],
     "author": "Coridor",
