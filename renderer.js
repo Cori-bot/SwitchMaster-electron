@@ -558,6 +558,15 @@ async function loadSettings() {
         settingMinimizeToTray.checked = appConfig.minimizeToTray === true || appConfig.minimizeToTray === undefined;
         settingAutoStart.checked = appConfig.autoStart === true;
 
+        // Init Security UI
+        if (appConfig.security && appConfig.security.enabled) {
+            settingSecurityEnable.checked = true;
+            securityConfigArea.style.display = 'block';
+        } else {
+            settingSecurityEnable.checked = false;
+            securityConfigArea.style.display = 'none';
+        }
+
         let currentPath = appConfig.riotPath || "";
         const defaultPath = "C:\\Riot Games\\Riot Client\\RiotClientServices.exe";
 
@@ -613,6 +622,164 @@ settingRiotPath.addEventListener('input', () => {
     clearTimeout(window.saveTimeout);
     window.saveTimeout = setTimeout(saveSettings, 500);
 });
+
+// Security Elements
+const lockScreen = document.getElementById('lock-screen');
+const lockPinDisplay = document.getElementById('lock-pin-display');
+const pinButtons = document.querySelectorAll('.pin-btn');
+const lockError = document.getElementById('lock-error');
+const pinDeleteBtn = document.getElementById('pin-delete');
+
+const settingSecurityEnable = document.getElementById('setting-security-enable');
+const securityConfigArea = document.getElementById('security-config-area');
+const btnChangePin = document.getElementById('btn-change-pin');
+
+let currentPinInput = "";
+let isSettingPin = false; // "verify" or "set" mode
+let confirmPin = ""; // used when setting pin
+
+// Security Functions
+async function checkSecurity() {
+    const isEnabled = await ipcRenderer.invoke('check-security-enabled');
+    if (isEnabled) {
+        showLockScreen('verify');
+    }
+}
+
+function showLockScreen(mode = 'verify') {
+    currentPinInput = "";
+    updatePinDisplay();
+    lockScreen.style.display = 'flex';
+    lockError.classList.remove('show');
+
+    // Reset UI state
+    const title = lockScreen.querySelector('h2');
+    const desc = lockScreen.querySelector('p');
+
+    if (mode === 'verify') {
+        title.textContent = "Verrouillé";
+        desc.textContent = "Entrez votre code PIN pour accéder à SwitchMaster";
+        isSettingPin = false;
+    } else if (mode === 'set') {
+        title.textContent = "Définir un Code PIN";
+        desc.textContent = "Entrez un nouveau code PIN à 4 chiffres";
+        isSettingPin = true;
+        confirmPin = "";
+    }
+}
+
+function updatePinDisplay() {
+    const dots = lockPinDisplay.querySelectorAll('.pin-dot');
+    dots.forEach((dot, index) => {
+        if (index < currentPinInput.length) {
+            dot.classList.add('filled');
+        } else {
+            dot.classList.remove('filled');
+        }
+    });
+}
+
+function handlePinInput(value) {
+    if (currentPinInput.length < 4) {
+        currentPinInput += value;
+        updatePinDisplay();
+    }
+
+    if (currentPinInput.length === 4) {
+        setTimeout(processPin, 100);
+    }
+}
+
+async function processPin() {
+    if (isSettingPin) {
+        // Setting new PIN logic
+        if (!confirmPin) {
+            // First entry done, ask for confirmation
+            confirmPin = currentPinInput;
+            currentPinInput = "";
+            updatePinDisplay();
+            lockScreen.querySelector('h2').textContent = "Confirmer le PIN";
+            lockScreen.querySelector('p').textContent = "Entrez le code à nouveau pour confirmer";
+        } else {
+            // Second entry done, check match
+            if (currentPinInput === confirmPin) {
+                // Success
+                await ipcRenderer.invoke('set-pin', currentPinInput);
+                lockScreen.style.display = 'none';
+                showNotification('Code PIN activé !', 'success');
+                settingSecurityEnable.checked = true;
+                securityConfigArea.style.display = 'block';
+                isSettingPin = false;
+                confirmPin = "";
+            } else {
+                // Mismatch
+                showError("Les codes ne correspondent pas");
+                currentPinInput = "";
+                confirmPin = "";
+                setTimeout(() => {
+                    lockScreen.querySelector('h2').textContent = "Définir un Code PIN";
+                    lockScreen.querySelector('p').textContent = "Entrez un nouveau code PIN à 4 chiffres";
+                    updatePinDisplay();
+                }, 1000);
+            }
+        }
+    } else {
+        // Verification logic
+        const isValid = await ipcRenderer.invoke('verify-pin', currentPinInput);
+        if (isValid) {
+            lockScreen.style.display = 'none';
+        } else {
+            showError("Code incorrect");
+            currentPinInput = "";
+            updatePinDisplay();
+        }
+    }
+}
+
+function showError(msg) {
+    lockError.textContent = msg;
+    lockError.classList.add('show');
+    const content = lockScreen.querySelector('.lock-content');
+    content.classList.add('shake');
+    setTimeout(() => {
+        content.classList.remove('shake');
+        lockError.classList.remove('show');
+    }, 1000);
+}
+
+// Security Listeners
+pinButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const val = btn.getAttribute('data-val');
+        if (val !== null) handlePinInput(val);
+    });
+});
+
+if (pinDeleteBtn) {
+    pinDeleteBtn.addEventListener('click', () => {
+        currentPinInput = currentPinInput.slice(0, -1);
+        updatePinDisplay();
+    });
+}
+
+// Settings Logic for Security
+settingSecurityEnable.addEventListener('change', async (e) => {
+    if (settingSecurityEnable.checked) {
+        // User wants to enable -> Show setup
+        showLockScreen('set');
+    } else {
+        // User wants to disable
+        await ipcRenderer.invoke('disable-pin');
+        showNotification('Code PIN désactivé', 'info');
+        securityConfigArea.style.display = 'none';
+    }
+});
+
+if (btnChangePin) {
+    btnChangePin.addEventListener('click', () => {
+        showLockScreen('set');
+    });
+}
 
 // Tray settings auto-save
 settingShowQuitModal.addEventListener('change', saveSettings);
@@ -728,6 +895,7 @@ navSettings.addEventListener('click', () => switchView('settings'));
 
 // Initialize
 loadSettings();
+checkSecurity();
 loadAccounts();
 log('Application started.');
 

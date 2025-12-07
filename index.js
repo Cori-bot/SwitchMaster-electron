@@ -28,8 +28,53 @@ let appConfig = {
     minimizeToTray: true,
     showQuitModal: true,
     autoStart: false,
-    lastAccountId: null
+    lastAccountId: null,
+    security: {
+        enabled: false,
+        pinHash: null
+    }
 };
+
+// ... (keep existing code matches)
+
+// --- Security Functions ---
+function hashPin(pin) {
+    return crypto.createHash('sha256').update(pin).digest('hex');
+}
+
+// ... (at the end of IPC handlers section)
+
+// 8. Security IPC
+ipcMain.handle('verify-pin', async (event, pin) => {
+    if (!appConfig.security.enabled) return true;
+
+    // Simple SHA256 hash comparison
+    const hashed = hashPin(pin);
+    return hashed === appConfig.security.pinHash;
+});
+
+ipcMain.handle('set-pin', async (event, pin) => {
+    const hashed = hashPin(pin);
+    appConfig.security = {
+        enabled: true,
+        pinHash: hashed
+    };
+    await saveConfig(appConfig);
+    return true;
+});
+
+ipcMain.handle('disable-pin', async (event) => {
+    appConfig.security = {
+        enabled: false,
+        pinHash: null
+    };
+    await saveConfig(appConfig);
+    return true;
+});
+
+ipcMain.handle('check-security-enabled', () => {
+    return appConfig.security && appConfig.security.enabled;
+});
 
 let activeAccountId = null;
 

@@ -141,13 +141,29 @@
                         </div>
 
                         <div class="setting-item">
-                            <label>Version</label>
-                            <p style="color: var(--text-muted); font-size: 13px;">v3.1.0 - Auto-Save Enabled</p>
+                            <label>Sécurité</label>
+                            <label class="checkbox-wrapper" for="setting-security-enable">
+                                <input type="checkbox" id="setting-security-enable">
+                                <span class="checkbox-visual"></span>
+                                <span class="checkbox-label">Activer le code PIN au démarrage</span>
+                            </label>
+                            <div id="security-config-area" style="margin-top: 10px; display: none; padding-left: 28px;">
+                                <button id="btn-change-pin" class="btn-secondary"
+                                    style="font-size: 13px; padding: 6px 12px;">
+                                    Définir / Changer le code PIN
+                                </button>
+                            </div>
                         </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <label>Version</label>
+                        <p style="color: var(--text-muted); font-size: 13px;">v3.1.0 - Auto-Save Enabled</p>
                     </div>
                 </div>
             </div>
-        </main>
+    </div>
+    </main>
     </div>
 
     <!-- Add/Edit Account Modal -->
@@ -307,6 +323,44 @@
                         style="width: 120px; background-color: #ff4655;">Quitter</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Security Lock Screen -->
+    <div id="lock-screen" class="lock-screen" style="display: none;">
+        <div class="lock-content">
+            <div class="lock-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+            </div>
+            <h2>Verrouillé</h2>
+            <p>Entrez votre code PIN pour accéder à SwitchMaster</p>
+
+            <div class="pin-display" id="lock-pin-display">
+                <span class="pin-dot"></span>
+                <span class="pin-dot"></span>
+                <span class="pin-dot"></span>
+                <span class="pin-dot"></span>
+            </div>
+
+            <div class="pin-pad">
+                <button class="pin-btn" data-val="1">1</button>
+                <button class="pin-btn" data-val="2">2</button>
+                <button class="pin-btn" data-val="3">3</button>
+                <button class="pin-btn" data-val="4">4</button>
+                <button class="pin-btn" data-val="5">5</button>
+                <button class="pin-btn" data-val="6">6</button>
+                <button class="pin-btn" data-val="7">7</button>
+                <button class="pin-btn" data-val="8">8</button>
+                <button class="pin-btn" data-val="9">9</button>
+                <button class="pin-btn empty"></button>
+                <button class="pin-btn" data-val="0">0</button>
+                <button class="pin-btn delete" id="pin-delete">⌫</button>
+            </div>
+            <p id="lock-error" class="lock-error"></p>
         </div>
     </div>
 

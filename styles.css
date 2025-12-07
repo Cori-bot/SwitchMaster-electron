@@ -1088,6 +1088,153 @@ body {
     animation: fadeIn 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
 }
 
-.fade-out {
-    animation: fadeOut 0.2s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+/* Security Lock Screen */
+.lock-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(18, 18, 18, 0.95);
+    backdrop-filter: blur(10px);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.lock-content {
+    text-align: center;
+    animation: modalPop 0.3s ease-out;
+}
+
+.lock-icon {
+    width: 80px;
+    height: 80px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24px;
+    color: var(--primary);
+}
+
+.lock-content h2 {
+    font-size: 24px;
+    margin-bottom: 8px;
+    color: var(--text-main);
+}
+
+.lock-content p {
+    color: var(--text-muted);
+    margin-bottom: 32px;
+}
+
+.pin-display {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-bottom: 32px;
+}
+
+.pin-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    transition: all 0.2s;
+}
+
+.pin-dot.filled {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    box-shadow: 0 0 10px rgba(51, 145, 212, 0.5);
+}
+
+.pin-pad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    max-width: 280px;
+    margin: 0 auto;
+}
+
+.pin-btn {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    font-size: 20px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pin-btn:hover:not(.empty) {
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.05);
+}
+
+.pin-btn:active:not(.empty) {
+    transform: scale(0.95);
+    background: var(--primary);
+}
+
+.pin-btn.empty {
+    background: transparent;
+    border: none;
+    cursor: default;
+}
+
+.pin-btn.delete {
+    color: #ff4655;
+    font-size: 18px;
+}
+
+.lock-error {
+    color: #ff4655;
+    margin-top: 16px;
+    height: 20px;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.lock-error.show {
+    opacity: 1;
+}
+
+/* Shake Animation for Error */
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+        transform: translateX(-5px);
+    }
+
+    20%,
+    40%,
+    60%,
+    80% {
+        transform: translateX(5px);
+    }
+}
+
+.shake {
+    animation: shake 0.4s cubic-bezier(.36, .07, .19, .97) both;
 }
