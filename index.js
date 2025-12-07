@@ -344,9 +344,18 @@ function setAutoStart(enable) {
 // --- Auto Updater ---
 autoUpdater.logger = require('electron-log');
 autoUpdater.logger.transports.file.level = 'info';
+autoUpdater.logger.info('App starting...');
+
+// Debug: Show update configuration
+console.log('Update configuration:', {
+    isPackaged: app.isPackaged,
+    version: app.getVersion(),
+    repo: 'Cori-bot/SwitchMaster-electron'
+});
 
 autoUpdater.on('checking-for-update', () => {
     console.log('Checking for update...');
+    autoUpdater.logger.info('Checking for update...');
     if (mainWindow) {
         mainWindow.webContents.send('update-status', { status: 'checking' });
     }
@@ -373,7 +382,21 @@ autoUpdater.on('update-not-available', (info) => {
 autoUpdater.on('error', (err) => {
     console.error('Update error:', err);
     if (mainWindow) {
-        mainWindow.webContents.send('update-status', { status: 'error', error: err.message });
+        let errorMessage = 'Erreur lors de la mise à jour';
+        
+        if (err.message.includes('GitHub')) {
+            errorMessage = 'Erreur de connexion à GitHub. Vérifiez votre connexion internet.';
+        } else if (err.message.includes('404')) {
+            errorMessage = 'Aucune mise à jour trouvée sur GitHub.';
+        } else if (err.message.includes('ENOENT')) {
+            errorMessage = 'Fichier de mise à jour introuvable.';
+        }
+        
+        mainWindow.webContents.send('update-status', { 
+            status: 'error', 
+            error: errorMessage,
+            details: err.message 
+        });
     }
 });
 
@@ -421,7 +444,10 @@ app.whenReady().then(async () => {
     if (!app.isPackaged) {
         console.log('Running in development mode - update checking disabled');
     } else {
-        autoUpdater.checkForUpdatesAndNotify();
+        console.log('Production mode - checking for updates...');
+        autoUpdater.checkForUpdatesAndNotify().catch(err => {
+            console.error('Initial update check failed:', err);
+        });
     }
 });
 
