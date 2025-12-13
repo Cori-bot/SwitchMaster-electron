@@ -21,14 +21,14 @@ function httpsGet(url, headers) {
             });
 
             res.on('end', () => {
-                if (res.statusCode === 200) {
-                    try {
-                        resolve(JSON.parse(jsonResponse));
-                    } catch (e) {
-                        reject(new Error('Failed to parse JSON response'));
-                    }
-                } else {
-                    reject(new Error(`HTTP ${res.statusCode}: ${jsonResponse}`));
+                if (res.statusCode !== 200) {
+                    return reject(new Error(`HTTP ${res.statusCode}: ${jsonResponse}`));
+                }
+
+                try {
+                    resolve(JSON.parse(jsonResponse));
+                } catch (e) {
+                    reject(new Error('Failed to parse JSON response'));
                 }
             });
         }).on('error', (err) => {

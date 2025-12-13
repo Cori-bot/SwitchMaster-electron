@@ -456,7 +456,11 @@ app.whenReady().then(async () => {
     }
 
     await loadConfig();
-    createWindow();
+    try {
+        await createWindow();
+    } catch (e) {
+        console.error('Failed to create window:', e);
+    }
     await updateTrayMenu();
 
     // Start process monitoring if function exists
@@ -475,7 +479,7 @@ app.whenReady().then(async () => {
 
     // Check for updates on startup
     if (!app.isPackaged) {
-        console.log('Running in development mode - update checking disabled');
+        // console.log('Running in development mode - update checking disabled');
     } else {
         console.log('Production mode - checking for updates...');
         autoUpdater.checkForUpdatesAndNotify().catch(err => {
@@ -664,14 +668,15 @@ ipcMain.handle('auto-detect-paths', async () => {
                 try {
                     const psData = JSON.parse(output);
                     // Find Riot Client
-                    const riotEntry = psData.find(item => item.DisplayName && item.DisplayName.includes('Riot Client'));
-                    let riotPath = null;
-                    if (riotEntry && riotEntry.InstallLocation) {
-                        riotPath = path.join(riotEntry.InstallLocation, 'RiotClientServices.exe');
-                        if (await fs.pathExists(riotPath)) return resolve({ riotPath });
+                    const riotEntry = psData.find(item => item.DisplayName?.includes('Riot Client'));
+
+                    if (riotEntry?.InstallLocation) {
+                        const candidatePath = path.join(riotEntry.InstallLocation, 'RiotClientServices.exe');
+                        if (await fs.pathExists(candidatePath)) {
+                            return resolve({ riotPath: candidatePath });
+                        }
                     }
 
-                    // Fallback search or just return what we have
                     resolve(null);
                 } catch (e) {
                     console.error('JSON Parse error in detection:', e);
@@ -706,7 +711,7 @@ ipcMain.handle('switch-account', async (event, id) => {
         });
         await new Promise(r => setTimeout(r, PROCESS_KILL_WAIT_MS));
     } catch (e) {
-        // console.log('Processes cleanup err:', e.message);
+        console.error('Processes cleanup err:', e.message);
     }
 
     // Launch Riot Client

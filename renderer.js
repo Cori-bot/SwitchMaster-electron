@@ -97,72 +97,7 @@ function log(message) {
     logsContainer.scrollTop = logsContainer.scrollHeight;
 }
 
-// --- Notifications ---
-function showNotification(message, type = 'info') {
-    const container = document.getElementById('notification-container');
-    const toast = document.createElement('div');
-    toast.className = `notification-toast ${type}`;
 
-    let icon = '';
-    if (type === 'success') icon = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--success')}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-    `;
-    else if (type === 'error') icon = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff4655" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-    `;
-    else icon = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--primary')}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-    `;
-
-    // Use textContent for message to prevent XSS
-    const iconContainer = document.createElement('div');
-    iconContainer.className = 'notification-icon';
-
-    let iconSvgString = '';
-    if (type === 'success') {
-        iconSvgString = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--success')}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
-    } else if (type === 'error') {
-        iconSvgString = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff4655" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`;
-    } else {
-        iconSvgString = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--primary')}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
-    }
-
-    iconContainer.appendChild(createSvgElement(iconSvgString));
-    toast.appendChild(iconContainer);
-
-    const msgSpan = document.createElement('span');
-    msgSpan.className = 'notification-message';
-    msgSpan.textContent = message;
-    toast.appendChild(msgSpan);
-
-    container.appendChild(toast);
-
-    const NOTIFICATION_DURATION = 3000;
-    setTimeout(() => {
-        toast.classList.add('closing');
-        toast.addEventListener('animationend', () => {
-            toast.remove();
-        });
-    }, NOTIFICATION_DURATION);
-}
-
-// XSS Protection
-function escapeHtml(unsafe) {
-    if (!unsafe) return '';
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
-function createSvgElement(svgString) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(svgString, 'image/svg+xml');
-    // Return the SVG element, or null if failed
-    return doc.documentElement;
-}
 
 // --- UI Rendering ---
 function renderAccounts() {
@@ -431,7 +366,7 @@ async function loadAccounts() {
         for (const acc of accounts) {
             if (acc.riotId && (!acc.stats || !acc.stats.rank)) {
                 loadAccountStats(acc.id).catch(err => {
-                    console.log(`Could not load stats for ${acc.name}:`, err.message);
+                    // console.log(`Could not load stats for ${acc.name}:`, err.message);
                 });
             }
         }
@@ -1108,33 +1043,38 @@ function showUpdateModal(updateInfo) {
                 releaseNotesEl.appendChild(document.createElement('br'));
                 return;
             }
+            if (line.trim()) {
+                releaseNotesEl.appendChild(parseMarkdownLine(line));
+            }
+        });
+    }
 
-            const paragraph = document.createElement('div');
+    function parseMarkdownLine(line) {
+        const paragraph = document.createElement('div');
+        const boldParts = line.split(/(\*\*.*?\*\*)/g);
 
-            // Format: **bold** and *italic*
-            // We split by ** first
-            const boldParts = line.split(/(\*\*.*?\*\*)/g);
+        boldParts.forEach(part => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+                const boldElement = document.createElement('strong');
+                boldElement.textContent = part.slice(2, -2);
+                paragraph.appendChild(boldElement);
+            } else {
+                appendItalicParts(paragraph, part);
+            }
+        });
+        return paragraph;
+    }
 
-            boldParts.forEach(part => {
-                if (part.startsWith('**') && part.endsWith('**')) {
-                    const boldElement = document.createElement('strong');
-                    boldElement.textContent = part.slice(2, -2);
-                    paragraph.appendChild(boldElement);
-                } else {
-                    // Check for italic *...* within non-bold parts
-                    const italicParts = part.split(/(\*.*?\*)/g);
-                    italicParts.forEach(subPart => {
-                        if (subPart.startsWith('*') && subPart.endsWith('*')) {
-                            const italicElement = document.createElement('em');
-                            italicElement.textContent = subPart.slice(1, -1);
-                            paragraph.appendChild(italicElement);
-                        } else {
-                            paragraph.appendChild(document.createTextNode(subPart));
-                        }
-                    });
-                }
-            });
-            releaseNotesEl.appendChild(paragraph);
+    function appendItalicParts(container, text) {
+        const italicParts = text.split(/(\*.*?\*)/g);
+        italicParts.forEach(subPart => {
+            if (subPart.startsWith('*') && subPart.endsWith('*')) {
+                const italicElement = document.createElement('em');
+                italicElement.textContent = subPart.slice(1, -1);
+                container.appendChild(italicElement);
+            } else {
+                container.appendChild(document.createTextNode(subPart));
+            }
         });
     }
 
