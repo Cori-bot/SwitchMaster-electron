@@ -118,17 +118,16 @@ function showNotification(message, type = 'info') {
     const iconContainer = document.createElement('div');
     iconContainer.className = 'notification-icon';
 
-    let iconSvg = '';
+    let iconSvgString = '';
     if (type === 'success') {
-        iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--success')}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
+        iconSvgString = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--success')}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
     } else if (type === 'error') {
-        iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff4655" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`;
+        iconSvgString = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff4655" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`;
     } else {
-        iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--primary')}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+        iconSvgString = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--primary')}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
     }
 
-    // It is safe to set innerHTML to static SGV strings
-    iconContainer.innerHTML = iconSvg;
+    iconContainer.appendChild(createSvgElement(iconSvgString));
     toast.appendChild(iconContainer);
 
     const msgSpan = document.createElement('span');
@@ -155,6 +154,13 @@ function escapeHtml(unsafe) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+}
+
+function createSvgElement(svgString) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(svgString, 'image/svg+xml');
+    // Return the SVG element, or null if failed
+    return doc.documentElement;
 }
 
 // --- UI Rendering ---
@@ -207,7 +213,19 @@ function createAccountCard(acc) {
     cardContent.style.position = 'relative';
     cardContent.style.zIndex = '2';
 
-    // Top Section
+    cardContent.appendChild(createCardTopSection(acc));
+
+    const rankSection = createRankSection(acc);
+    if (rankSection) cardContent.appendChild(rankSection);
+
+    cardContent.appendChild(createCardActions(acc));
+
+    card.appendChild(cardContent);
+    addDragHandlers(card, acc.id);
+    return card;
+}
+
+function createCardTopSection(acc) {
     const topSection = document.createElement('div');
     topSection.className = 'card-top-section';
     topSection.style.display = 'flex';
@@ -252,9 +270,10 @@ function createAccountCard(acc) {
     cardRight.appendChild(displayImage);
     topSection.appendChild(cardRight);
 
-    cardContent.appendChild(topSection);
+    return topSection;
+}
 
-    // Rank Section
+function createRankSection(acc) {
     if (acc.stats && acc.stats.rank) {
         const rankSection = document.createElement('div');
         rankSection.className = 'rank-section';
@@ -310,7 +329,7 @@ function createAccountCard(acc) {
             peakSection.appendChild(peakDisplay);
             rankSection.appendChild(peakSection);
         }
-        cardContent.appendChild(rankSection);
+        return rankSection;
     } else if (acc.riotId) {
         const rankSection = document.createElement('div');
         rankSection.className = 'rank-section';
@@ -318,10 +337,12 @@ function createAccountCard(acc) {
         loadingDiv.className = 'rank-loading';
         loadingDiv.textContent = 'Chargement des stats...';
         rankSection.appendChild(loadingDiv);
-        cardContent.appendChild(rankSection);
+        return rankSection;
     }
+    return null;
+}
 
-    // Actions
+function createCardActions(acc) {
     const cardActions = document.createElement('div');
     cardActions.className = 'card-actions';
     cardActions.style.display = 'flex';
@@ -344,16 +365,16 @@ function createAccountCard(acc) {
     const btnSettings = document.createElement('button');
     btnSettings.className = 'btn-settings';
     btnSettings.title = 'Paramètres du compte';
-    btnSettings.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings-icon lucide-settings"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>`;
+    btnSettings.appendChild(createSvgElement(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings-icon lucide-settings"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>`));
 
-    // Create Menu
     const menu = document.createElement('div');
     menu.className = 'settings-menu';
     menu.style.display = 'none';
 
     const btnEdit = document.createElement('button');
     btnEdit.className = 'menu-item';
-    btnEdit.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Modifier le compte`;
+    btnEdit.appendChild(createSvgElement(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`));
+    btnEdit.appendChild(document.createTextNode(' Modifier le compte'));
     btnEdit.addEventListener('click', (e) => {
         e.stopPropagation();
         menu.style.display = 'none';
@@ -362,7 +383,8 @@ function createAccountCard(acc) {
 
     const btnDelete = document.createElement('button');
     btnDelete.className = 'menu-item menu-item-danger';
-    btnDelete.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> Supprimer le compte`;
+    btnDelete.appendChild(createSvgElement(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`));
+    btnDelete.appendChild(document.createTextNode(' Supprimer le compte'));
     btnDelete.addEventListener('click', (e) => {
         e.stopPropagation();
         menu.style.display = 'none';
@@ -384,11 +406,8 @@ function createAccountCard(acc) {
     settingsWrapper.appendChild(btnSettings);
     settingsWrapper.appendChild(menu);
     cardActions.appendChild(settingsWrapper);
-    cardContent.appendChild(cardActions);
 
-    card.appendChild(cardContent);
-    addDragHandlers(card, acc.id);
-    return card;
+    return cardActions;
 }
 
 // Global listener for closing menus
