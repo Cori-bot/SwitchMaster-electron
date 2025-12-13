@@ -251,31 +251,16 @@ function createWindow() {
 }
 
 // --- System Tray ---
+// --- System Tray ---
 async function updateTrayMenu() {
     if (!tray) {
-        const iconPath = path.join(__dirname, 'assets', 'logo.png');
-        tray = new Tray(iconPath);
-        tray.setToolTip('SwitchMaster');
-
-        // Click on tray icon to show window
-        tray.on('click', () => {
-            if (mainWindow.isVisible()) {
-                mainWindow.focus();
-            } else {
-                mainWindow.show();
-                mainWindow.focus();
-            }
-        });
+        initTray();
     }
 
-    // Build menu items
     const menuItems = [
         {
             label: 'Afficher SwitchMaster',
-            click: () => {
-                mainWindow.show();
-                mainWindow.focus();
-            }
+            click: () => mainWindow && mainWindow.show() && mainWindow.focus()
         },
         { type: 'separator' },
         {
@@ -288,34 +273,10 @@ async function updateTrayMenu() {
         }
     ];
 
-    // Add quick connect if there's a last account
     if (appConfig.lastAccountId) {
-        try {
-            const accounts = await loadAccountsMeta();
-            const lastAccount = accounts.find(a => a.id === appConfig.lastAccountId);
-            if (lastAccount) {
-                menuItems.push(
-                    { type: 'separator' },
-                    {
-                        label: `Connecter: ${lastAccount.name}`,
-                        click: async () => {
-                            try {
-                                // Trigger the switch account handler
-                                await ipcMain.emit('switch-account-trigger', lastAccount.id);
-                                if (mainWindow) mainWindow.webContents.send('quick-connect-triggered', lastAccount.id);
-                            } catch (err) {
-                                console.error('Quick connect error:', err);
-                            }
-                        }
-                    }
-                );
-            }
-        } catch (err) {
-            console.error('Error loading accounts for tray menu:', err);
-        }
+        await addQuickConnectItem(menuItems);
     }
 
-    // Add quit button
     menuItems.push(
         { type: 'separator' },
         {
@@ -328,6 +289,49 @@ async function updateTrayMenu() {
     );
 
     tray.setContextMenu(Menu.buildFromTemplate(menuItems));
+}
+
+function initTray() {
+    const iconPath = path.join(__dirname, 'assets', 'logo.png');
+    tray = new Tray(iconPath);
+    tray.setToolTip('SwitchMaster');
+
+    tray.on('click', () => {
+        if (!mainWindow) return;
+        if (mainWindow.isVisible()) {
+            mainWindow.focus();
+        } else {
+            mainWindow.show();
+            mainWindow.focus();
+        }
+    });
+}
+
+async function addQuickConnectItem(menuItems) {
+    try {
+        const accounts = await loadAccountsMeta();
+        const lastAccount = accounts.find(a => a.id === appConfig.lastAccountId);
+        if (lastAccount) {
+            menuItems.push(
+                { type: 'separator' },
+                {
+                    label: `Connecter: ${lastAccount.name}`,
+                    click: () => handleQuickConnect(lastAccount)
+                }
+            );
+        }
+    } catch (err) {
+        console.error('Error loading accounts for tray menu:', err);
+    }
+}
+
+async function handleQuickConnect(account) {
+    try {
+        await ipcMain.emit('switch-account-trigger', account.id);
+        if (mainWindow) mainWindow.webContents.send('quick-connect-triggered', account.id);
+    } catch (err) {
+        console.error('Quick connect error:', err);
+    }
 }
 
 // --- Process Monitoring ---
@@ -343,10 +347,7 @@ function monitorRiotProcess() {
             // "INFO: No tasks are running"
 
             if (!stdout.includes('RiotClientServices.exe')) {
-                // console.log('Riot Client closed. Resetting active status.');
                 activeAccountId = null;
-
-                // Notifier le renderer pour qu'il enlève la bordure verte / statut actif
                 if (mainWindow) {
                     mainWindow.webContents.send('riot-client-closed');
                 }
@@ -358,25 +359,16 @@ function monitorRiotProcess() {
 // --- Auto-start functionality
 function setAutoStart(enable) {
     try {
-        // For electron-builder, we need to handle both dev and production cases
         const settings = {
             openAtLogin: enable
         };
 
-        // In production (packaged app), electron-builder handles the path automatically
-        // In development, we need to specify the electron executable
         if (!app.isPackaged) {
             settings.path = process.execPath;
-            // Also specify args for development
             settings.args = ['.'];
         }
 
         app.setLoginItemSettings(settings);
-        // console.log(`Auto-start ${enable ? 'enabled' : 'disabled'}`);
-
-        // Verify the setting was applied
-        const currentSettings = app.getLoginItemSettings();
-        // console.log('Current login item settings:', currentSettings);
 
     } catch (error) {
         console.error('Error setting auto-start:', error);
@@ -392,7 +384,6 @@ autoUpdater.logger.info('App starting...');
 
 
 autoUpdater.on('checking-for-update', () => {
-    // console.log('Checking for update...');
     autoUpdater.logger.info('Checking for update...');
     if (mainWindow) {
         mainWindow.webContents.send('update-status', { status: 'checking' });
@@ -400,7 +391,6 @@ autoUpdater.on('checking-for-update', () => {
 });
 
 autoUpdater.on('update-available', (info) => {
-    // console.log('Update available:', info);
     if (mainWindow) {
         mainWindow.webContents.send('update-status', {
             status: 'available',
@@ -411,7 +401,6 @@ autoUpdater.on('update-available', (info) => {
 });
 
 autoUpdater.on('update-not-available', (info) => {
-    // console.log('Update not available:', info);
     if (mainWindow) {
         mainWindow.webContents.send('update-status', { status: 'not-available' });
     }
@@ -442,7 +431,6 @@ autoUpdater.on('download-progress', (progressObj) => {
     let log_message = "Download speed: " + progressObj.bytesPerSecond;
     log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
     log_message = log_message + ' (' + progressObj.transferred + "/" + progressObj.total + ')';
-    // console.log(log_message);
     if (mainWindow) {
         mainWindow.webContents.send('update-progress', {
             percent: Math.round(progressObj.percent),
@@ -453,7 +441,6 @@ autoUpdater.on('download-progress', (progressObj) => {
 });
 
 autoUpdater.on('update-downloaded', (info) => {
-    // console.log('Update downloaded');
     if (mainWindow) {
         mainWindow.webContents.send('update-downloaded');
     }
@@ -754,10 +741,10 @@ ipcMain.handle('switch-account', async (event, id) => {
         };
 
         // Wait for window (polling)
-        // console.log('Waiting for window...');
+        const POLL_ATTEMPTS = 30;
         let attempts = 0;
         let isWindowFound = false;
-        while (attempts < 30) {
+        while (attempts < POLL_ATTEMPTS) {
             try {
                 const check = await runPs('Check');
                 if (check && check.includes('Found')) {
@@ -770,8 +757,8 @@ ipcMain.handle('switch-account', async (event, id) => {
         }
 
         if (!isWindowFound) throw new Error('Riot Client window not detected.');
-        // console.log('Window found. Performing Login...');
 
+        // Login sequence
         clipboard.writeText(username);
         await runPs('PasteTab');
         clipboard.clear();
@@ -781,6 +768,7 @@ ipcMain.handle('switch-account', async (event, id) => {
         clipboard.writeText(password);
         await runPs('PasteEnter');
         clipboard.clear();
+
 
     } catch (err) {
         console.error('Automation error:', err);

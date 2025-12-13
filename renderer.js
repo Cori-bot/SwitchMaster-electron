@@ -137,12 +137,13 @@ function showNotification(message, type = 'info') {
 
     container.appendChild(toast);
 
+    const NOTIFICATION_DURATION = 3000;
     setTimeout(() => {
         toast.classList.add('closing');
         toast.addEventListener('animationend', () => {
             toast.remove();
         });
-    }, 3000);
+    }, NOTIFICATION_DURATION);
 }
 
 // XSS Protection
@@ -418,11 +419,7 @@ document.addEventListener('click', (e) => {
         });
     }
 });
-/*
-function addAccountCardListeners() {
-   // Replaced by direct event listeners in createAccountCard
-}
-*/
+
 
 // --- Actions ---
 async function loadAccounts() {
@@ -773,9 +770,9 @@ if (modalError) modalError.addEventListener('click', (e) => {
 
 async function checkStatus() {
     try {
-        const res = await ipcRenderer.invoke('get-status');
-        if (res.status === 'Active' && res.accountId) {
-            const acc = accounts.find(a => a.id === res.accountId);
+        const statusResponse = await ipcRenderer.invoke('get-status');
+        if (statusResponse.status === 'Active' && statusResponse.accountId) {
+            const acc = accounts.find(a => a.id === statusResponse.accountId);
             if (acc) {
                 statusText.textContent = `Active: ${acc.name}`;
                 statusDot.classList.add('active');
@@ -785,7 +782,7 @@ async function checkStatus() {
                 return;
             }
         }
-        statusText.textContent = res.status;
+        statusText.textContent = statusResponse.status;
         statusDot.classList.add('active');
         document.querySelectorAll('.account-card').forEach(card => card.classList.remove('active-account'));
     } catch (err) {
@@ -1103,40 +1100,41 @@ function showUpdateModal(updateInfo) {
     if (latestVersionEl) latestVersionEl.textContent = `v${updateInfo.latestVersion}`;
     if (currentVersionEl) currentVersionEl.textContent = `v${updateInfo.currentVersion}`;
     if (releaseNotesEl) {
-        // Convert markdown-like release notes to HTML
-        // Parse simple markdown to DOM without innerHTML
-        // format: **bold** and *italic* and newlines
         releaseNotesEl.textContent = ''; // clear
-
         const lines = updateInfo.releaseNotes.split('\n');
+
         lines.forEach(line => {
             if (!line) {
                 releaseNotesEl.appendChild(document.createElement('br'));
                 return;
             }
-            const p = document.createElement('div');
-            // Very simple parser for **bold**
-            const parts = line.split(/(\*\*.*?\*\*)/g);
-            parts.forEach(part => {
+
+            const paragraph = document.createElement('div');
+
+            // Format: **bold** and *italic*
+            // We split by ** first
+            const boldParts = line.split(/(\*\*.*?\*\*)/g);
+
+            boldParts.forEach(part => {
                 if (part.startsWith('**') && part.endsWith('**')) {
-                    const b = document.createElement('strong');
-                    b.textContent = part.slice(2, -2);
-                    p.appendChild(b);
+                    const boldElement = document.createElement('strong');
+                    boldElement.textContent = part.slice(2, -2);
+                    paragraph.appendChild(boldElement);
                 } else {
-                    // Check for italic *...*
-                    const subParts = part.split(/(\*.*?\*)/g);
-                    subParts.forEach(sp => {
-                        if (sp.startsWith('*') && sp.endsWith('*')) {
-                            const i = document.createElement('em');
-                            i.textContent = sp.slice(1, -1);
-                            p.appendChild(i);
+                    // Check for italic *...* within non-bold parts
+                    const italicParts = part.split(/(\*.*?\*)/g);
+                    italicParts.forEach(subPart => {
+                        if (subPart.startsWith('*') && subPart.endsWith('*')) {
+                            const italicElement = document.createElement('em');
+                            italicElement.textContent = subPart.slice(1, -1);
+                            paragraph.appendChild(italicElement);
                         } else {
-                            p.appendChild(document.createTextNode(sp));
+                            paragraph.appendChild(document.createTextNode(subPart));
                         }
                     });
                 }
             });
-            releaseNotesEl.appendChild(p);
+            releaseNotesEl.appendChild(paragraph);
         });
     }
 
@@ -1214,9 +1212,9 @@ if (btnCheckUpdates) {
             btnCheckUpdates.disabled = true;
             btnCheckUpdates.textContent = 'Vérification...';
 
-            const result = await ipcRenderer.invoke('check-for-updates');
+            const updateCheckResult = await ipcRenderer.invoke('check-for-updates');
 
-            if (result.status === 'not-available' && result.message) {
+            if (updateCheckResult.status === 'not-available' && updateCheckResult.message) {
                 // Development mode - show message
                 showNotification('Mode développement : simulation de vérification', 'info');
                 btnCheckUpdates.disabled = false;
@@ -1233,9 +1231,9 @@ if (btnCheckUpdates) {
 }
 
 // Handle update installation
-let updateDownloaded = false;
+let isUpdateDownloaded = false;
 ipcRenderer.on('update-downloaded', () => {
-    updateDownloaded = true;
+    isUpdateDownloaded = true;
     if (btnUpdateDownload) {
         btnUpdateDownload.textContent = 'Installer maintenant';
         btnUpdateDownload.disabled = false;
