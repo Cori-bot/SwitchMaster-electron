@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https://api.tracker.gg https://github.com https://api.github.com; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com;">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' data: https:; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https://api.tracker.gg https://github.com https://api.github.com; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com;">
     <title>SwitchMaster</title>
     <link rel="stylesheet" href="styles.css">
     <!-- Google Fonts -->
@@ -160,7 +161,8 @@
                             <label>Version</label>
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <p style="color: var(--text-muted); font-size: 13px;">v2.4.0</p>
-                                <button id="btn-check-updates" class="btn-secondary" style="font-size: 12px; padding: 4px 8px;">
+                                <button id="btn-check-updates" class="btn-secondary"
+                                    style="font-size: 12px; padding: 4px 8px;">
                                     Vérifier les mises à jour
                                 </button>
                             </div>
@@ -168,8 +170,8 @@
                     </div>
                 </div>
             </div>
-        </div>
-        </main>
+    </div>
+    </main>
     </div>
 
     <!-- Add/Edit Account Modal -->
@@ -362,7 +364,8 @@
                     Une nouvelle version <strong id="update-latest-version">vX.X.X</strong> est disponible.
                     Vous avez actuellement la version <strong id="update-current-version">vX.X.X</strong>.
                 </p>
-                <div id="update-release-notes" style="max-height: 150px; overflow-y: auto; margin-bottom: 20px; padding: 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 13px; line-height: 1.4;">
+                <div id="update-release-notes"
+                    style="max-height: 150px; overflow-y: auto; margin-bottom: 20px; padding: 12px; background: var(--bg-secondary); border-radius: 8px; font-size: 13px; line-height: 1.4;">
                     <!-- Release notes will be injected here -->
                 </div>
                 <div class="modal-footer" style="justify-content: center; gap: 10px;">

@@ -3,7 +3,7 @@ const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs-extra');
 const yaml = require('yaml');
-const { v4: uuidv4 } = require('uuid');
+
 const chokidar = require('chokidar');
 const crypto = require('crypto');
 const { fetchAccountStats } = require('./statsService');
@@ -11,14 +11,23 @@ const { spawn, exec } = require('child_process');
 
 // --- Constants & Paths ---
 const APP_DATA_PATH = app.getPath('userData');
+
 const ACCOUNTS_FILE = path.join(APP_DATA_PATH, 'accounts.json');
 const CONFIG_FILE = path.join(APP_DATA_PATH, 'config.json');
 const DEFAULT_RIOT_DATA_PATH = "C:\\Riot Games\\Riot Client\\RiotClientServices.exe";
 const PRIVATE_SETTINGS_FILE = 'RiotClientPrivateSettings.yaml';
 
+// Magic Numbers
+const WINDOW_WIDTH = 1000;
+const WINDOW_HEIGHT = 700;
+const MIN_WIDTH = 600;
+const MIN_HEIGHT = 600;
+const CHECK_INTERVAL_MS = 5000;
+const PROCESS_KILL_WAIT_MS = 2000;
+
 // Get scripts path (works in both dev and production)
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
-const SCRIPTS_PATH = isDev 
+const SCRIPTS_PATH = isDev
     ? path.join(__dirname, 'assets', 'scripts')
     : path.join(process.resourcesPath, 'scripts');
 
@@ -29,12 +38,8 @@ fs.ensureDirSync(APP_DATA_PATH);
 const automateLoginScript = path.join(SCRIPTS_PATH, 'automate_login.ps1');
 const detectGamesScript = path.join(SCRIPTS_PATH, 'detect_games.ps1');
 
-if (!fs.existsSync(automateLoginScript)) {
-    console.error(`Automation script not found: ${automateLoginScript}`);
-}
-if (!fs.existsSync(detectGamesScript)) {
-    console.error(`Detection script not found: ${detectGamesScript}`);
-}
+
+
 
 let mainWindow;
 let tray = null;
@@ -91,14 +96,14 @@ ipcMain.handle('disable-pin', async (event) => {
 });
 
 ipcMain.handle('select-image', async () => {
-    const result = await dialog.showOpenDialog(mainWindow, {
+    const dialogResult = await dialog.showOpenDialog(mainWindow, {
         properties: ['openFile'],
         filters: [
             { name: 'Images', extensions: ['jpg', 'png', 'gif', 'jpeg', 'webp'] }
         ]
     });
-    if (result.canceled || result.filePaths.length === 0) return null;
-    return result.filePaths[0];
+    if (dialogResult.canceled || dialogResult.filePaths.length === 0) return null;
+    return dialogResult.filePaths[0];
 });
 
 // 9. Check Security Enabled
@@ -191,10 +196,10 @@ async function saveAccountsMeta(accounts) {
 // --- Main Window ---
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 1000,
-        height: 700,
-        minWidth: 600,
-        minHeight: 600,
+        width: WINDOW_WIDTH,
+        height: WINDOW_HEIGHT,
+        minWidth: MIN_WIDTH,
+        minHeight: MIN_HEIGHT,
         webPreferences: {
             // Nouveau modèle sécurisé : pas de nodeIntegration, preload isolé
             nodeIntegration: false,
@@ -209,7 +214,7 @@ function createWindow() {
         icon: path.join(__dirname, 'assets', 'logo.png')
     });
 
-    mainWindow.loadFile('index.html');
+    mainWindow.loadFile('index.html').catch(e => console.error('Failed to load index.html', e));
 
     // Sécuriser la navigation : empêcher les navigations internes vers des URLs externes
     mainWindow.webContents.on('will-navigate', (event, url) => {
@@ -296,8 +301,8 @@ async function updateTrayMenu() {
                         click: async () => {
                             try {
                                 // Trigger the switch account handler
-                                const result = await ipcMain.emit('switch-account-trigger', lastAccount.id);
-                                mainWindow.webContents.send('quick-connect-triggered', lastAccount.id);
+                                await ipcMain.emit('switch-account-trigger', lastAccount.id);
+                                if (mainWindow) mainWindow.webContents.send('quick-connect-triggered', lastAccount.id);
                             } catch (err) {
                                 console.error('Quick connect error:', err);
                             }
@@ -338,7 +343,7 @@ function monitorRiotProcess() {
             // "INFO: No tasks are running"
 
             if (!stdout.includes('RiotClientServices.exe')) {
-                console.log('Riot Client closed. Resetting active status.');
+                // console.log('Riot Client closed. Resetting active status.');
                 activeAccountId = null;
 
                 // Notifier le renderer pour qu'il enlève la bordure verte / statut actif
@@ -347,7 +352,7 @@ function monitorRiotProcess() {
                 }
             }
         });
-    }, 5000); // Check every 5 seconds
+    }, CHECK_INTERVAL_MS);
 }
 
 // --- Auto-start functionality
@@ -367,12 +372,12 @@ function setAutoStart(enable) {
         }
 
         app.setLoginItemSettings(settings);
-        console.log(`Auto-start ${enable ? 'enabled' : 'disabled'}`);
-        
+        // console.log(`Auto-start ${enable ? 'enabled' : 'disabled'}`);
+
         // Verify the setting was applied
         const currentSettings = app.getLoginItemSettings();
-        console.log('Current login item settings:', currentSettings);
-        
+        // console.log('Current login item settings:', currentSettings);
+
     } catch (error) {
         console.error('Error setting auto-start:', error);
     }
@@ -384,14 +389,10 @@ autoUpdater.logger.transports.file.level = 'info';
 autoUpdater.logger.info('App starting...');
 
 // Debug: Show update configuration
-console.log('Update configuration:', {
-    isPackaged: app.isPackaged,
-    version: app.getVersion(),
-    repo: 'Cori-bot/SwitchMaster-electron'
-});
+
 
 autoUpdater.on('checking-for-update', () => {
-    console.log('Checking for update...');
+    // console.log('Checking for update...');
     autoUpdater.logger.info('Checking for update...');
     if (mainWindow) {
         mainWindow.webContents.send('update-status', { status: 'checking' });
@@ -399,18 +400,18 @@ autoUpdater.on('checking-for-update', () => {
 });
 
 autoUpdater.on('update-available', (info) => {
-    console.log('Update available:', info);
+    // console.log('Update available:', info);
     if (mainWindow) {
-        mainWindow.webContents.send('update-status', { 
-            status: 'available', 
+        mainWindow.webContents.send('update-status', {
+            status: 'available',
             version: info.version,
-            releaseNotes: info.releaseNotes 
+            releaseNotes: info.releaseNotes
         });
     }
 });
 
 autoUpdater.on('update-not-available', (info) => {
-    console.log('Update not available:', info);
+    // console.log('Update not available:', info);
     if (mainWindow) {
         mainWindow.webContents.send('update-status', { status: 'not-available' });
     }
@@ -420,7 +421,7 @@ autoUpdater.on('error', (err) => {
     console.error('Update error:', err);
     if (mainWindow) {
         let errorMessage = 'Erreur lors de la mise à jour';
-        
+
         if (err.message.includes('GitHub')) {
             errorMessage = 'Erreur de connexion à GitHub. Vérifiez votre connexion internet.';
         } else if (err.message.includes('404')) {
@@ -428,11 +429,11 @@ autoUpdater.on('error', (err) => {
         } else if (err.message.includes('ENOENT')) {
             errorMessage = 'Fichier de mise à jour introuvable.';
         }
-        
-        mainWindow.webContents.send('update-status', { 
-            status: 'error', 
+
+        mainWindow.webContents.send('update-status', {
+            status: 'error',
             error: errorMessage,
-            details: err.message 
+            details: err.message
         });
     }
 });
@@ -441,7 +442,7 @@ autoUpdater.on('download-progress', (progressObj) => {
     let log_message = "Download speed: " + progressObj.bytesPerSecond;
     log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
     log_message = log_message + ' (' + progressObj.transferred + "/" + progressObj.total + ')';
-    console.log(log_message);
+    // console.log(log_message);
     if (mainWindow) {
         mainWindow.webContents.send('update-progress', {
             percent: Math.round(progressObj.percent),
@@ -452,17 +453,25 @@ autoUpdater.on('download-progress', (progressObj) => {
 });
 
 autoUpdater.on('update-downloaded', (info) => {
-    console.log('Update downloaded');
+    // console.log('Update downloaded');
     if (mainWindow) {
         mainWindow.webContents.send('update-downloaded');
     }
 });
 
 app.whenReady().then(async () => {
+    // Validate scripts existence asynchronously
+    if (!(await fs.pathExists(automateLoginScript))) {
+        console.error(`Automation script not found: ${automateLoginScript}`);
+    }
+    if (!(await fs.pathExists(detectGamesScript))) {
+        // console.error(`Detection script not found: ${detectGamesScript}`);
+    }
+
     await loadConfig();
     createWindow();
-    updateTrayMenu();
-    
+    await updateTrayMenu();
+
     // Start process monitoring if function exists
     if (typeof monitorRiotProcess === 'function') {
         monitorRiotProcess();
@@ -471,7 +480,7 @@ app.whenReady().then(async () => {
     }
 
     const settingsPath = path.join(riotDataPath, PRIVATE_SETTINGS_FILE);
-    if (fs.existsSync(riotDataPath)) {
+    if (await fs.pathExists(riotDataPath)) {
         chokidar.watch(settingsPath).on('change', () => {
             // Optional: Notify renderer
         });
@@ -486,7 +495,7 @@ app.whenReady().then(async () => {
             console.error('Initial update check failed:', err);
         });
     }
-});
+}).catch(console.error);
 
 app.on('window-all-closed', () => {
     // Don't quit on window close if minimizing to tray
@@ -521,7 +530,7 @@ ipcMain.handle('get-account-credentials', async (event, accountId) => {
 
 // 2. Add Account (with credentials)
 ipcMain.handle('add-account', async (event, { name, username, password, riotId, gameType, cardImage }) => {
-    const id = uuidv4();
+    const id = crypto.randomUUID();
 
     // Encrypt credentials
     const encryptedUsername = encryptData(username);
@@ -658,7 +667,7 @@ ipcMain.handle('auto-detect-paths', async () => {
             ps.stdout.on('data', (d) => output += d.toString());
             ps.stderr.on('data', (d) => errorOutput += d.toString());
 
-            ps.on('close', (code) => {
+            ps.on('close', async (code) => {
                 if (code !== 0) {
                     console.error('Detection PS failed:', errorOutput);
                     resolve(null); // Return null on failure, don't crash
@@ -666,13 +675,13 @@ ipcMain.handle('auto-detect-paths', async () => {
                 }
 
                 try {
-                    const data = JSON.parse(output);
+                    const psData = JSON.parse(output);
                     // Find Riot Client
-                    const riotEntry = data.find(item => item.DisplayName && item.DisplayName.includes('Riot Client'));
+                    const riotEntry = psData.find(item => item.DisplayName && item.DisplayName.includes('Riot Client'));
                     let riotPath = null;
                     if (riotEntry && riotEntry.InstallLocation) {
                         riotPath = path.join(riotEntry.InstallLocation, 'RiotClientServices.exe');
-                        if (fs.existsSync(riotPath)) return resolve({ riotPath });
+                        if (await fs.pathExists(riotPath)) return resolve({ riotPath });
                     }
 
                     // Fallback search or just return what we have
@@ -700,17 +709,17 @@ ipcMain.handle('switch-account', async (event, id) => {
     const username = decryptData(account.username);
     const password = decryptData(account.password);
 
-    console.log(`Switching to account: ${account.name}`);
+    // console.log(`Switching to account: ${account.name}`);
 
     // Kill Riot Processes
     try {
-        console.log('Killing existing Riot processes...');
+        // console.log('Killing existing Riot processes...');
         await new Promise((resolve) => {
             exec('taskkill /F /IM "RiotClientServices.exe" /IM "LeagueClient.exe" /IM "VALORANT.exe"', () => resolve());
         });
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, PROCESS_KILL_WAIT_MS));
     } catch (e) {
-        console.log('Processes cleanup err:', e.message);
+        // console.log('Processes cleanup err:', e.message);
     }
 
     // Launch Riot Client
@@ -719,8 +728,8 @@ ipcMain.handle('switch-account', async (event, id) => {
         clientPath = path.join(clientPath, 'RiotClientServices.exe');
     }
 
-    console.log('Launching Riot Client from:', clientPath);
-    if (fs.existsSync(clientPath)) {
+    // console.log('Launching Riot Client from:', clientPath);
+    if (await fs.pathExists(clientPath)) {
         const child = spawn(clientPath, [], { detached: true, stdio: 'ignore' });
         child.unref();
     } else {
@@ -737,7 +746,7 @@ ipcMain.handle('switch-account', async (event, id) => {
                 const ps = spawn('powershell.exe', ['-ExecutionPolicy', 'Bypass', '-File', psScript, '-Action', action]);
                 let output = '';
                 ps.stdout.on('data', (d) => output += d.toString());
-                ps.on('close', (code) => {
+                ps.on('close', async (code) => {
                     if (code === 0) resolve(output);
                     else reject(new Error(`PS Action ${action} failed`));
                 });
@@ -745,14 +754,14 @@ ipcMain.handle('switch-account', async (event, id) => {
         };
 
         // Wait for window (polling)
-        console.log('Waiting for window...');
+        // console.log('Waiting for window...');
         let attempts = 0;
-        let found = false;
+        let isWindowFound = false;
         while (attempts < 30) {
             try {
                 const check = await runPs('Check');
                 if (check && check.includes('Found')) {
-                    found = true;
+                    isWindowFound = true;
                     break;
                 }
             } catch (e) {/*ignore*/ }
@@ -760,8 +769,8 @@ ipcMain.handle('switch-account', async (event, id) => {
             attempts++;
         }
 
-        if (!found) throw new Error('Riot Client window not detected.');
-        console.log('Window found. Performing Login...');
+        if (!isWindowFound) throw new Error('Riot Client window not detected.');
+        // console.log('Window found. Performing Login...');
 
         clipboard.writeText(username);
         await runPs('PasteTab');

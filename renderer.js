@@ -19,13 +19,10 @@ const btnBrowseImage = document.getElementById('btn-browse-image');
 
 const logsContainer = document.getElementById('logs-container');
 const logsPanel = document.querySelector('.logs-panel');
-const btnClearLogs = document.getElementById('clear-logs');
 
 const statusDot = document.getElementById('status-dot');
 const statusText = document.getElementById('status-text');
 
-const btnLaunchVal = document.getElementById('launch-val');
-const btnLaunchLoL = document.getElementById('launch-lol');
 
 // Settings Elements
 const settingLogs = document.getElementById('setting-logs');
@@ -117,10 +114,27 @@ function showNotification(message, type = 'info') {
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--primary')}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
     `;
 
-    toast.innerHTML = `
-        ${icon}
-        <span class="notification-message">${message}</span>
-    `;
+    // Use textContent for message to prevent XSS
+    const iconContainer = document.createElement('div');
+    iconContainer.className = 'notification-icon';
+
+    let iconSvg = '';
+    if (type === 'success') {
+        iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--success')}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
+    } else if (type === 'error') {
+        iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff4655" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`;
+    } else {
+        iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--primary')}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+    }
+
+    // It is safe to set innerHTML to static SGV strings
+    iconContainer.innerHTML = iconSvg;
+    toast.appendChild(iconContainer);
+
+    const msgSpan = document.createElement('span');
+    msgSpan.className = 'notification-message';
+    msgSpan.textContent = message;
+    toast.appendChild(msgSpan);
 
     container.appendChild(toast);
 
@@ -145,152 +159,251 @@ function escapeHtml(unsafe) {
 
 // --- UI Rendering ---
 function renderAccounts() {
-    accountsList.innerHTML = '';
+    accountsList.replaceChildren();
 
     if (accounts.length === 0) {
-        accountsList.innerHTML = `
-            <div class="empty-state-container">
-                <button id="btn-empty-add" class="btn-empty-state">
-                    <div class="empty-icon">+</div>
-                    <div class="empty-text">Ajouter un premier compte</div>
-                </button>
-            </div>
-        `;
-        document.getElementById('btn-empty-add').addEventListener('click', () => openModal('add'));
+        const emptyContainer = document.createElement('div');
+        emptyContainer.className = 'empty-state-container';
+
+        const btnEmptyAdd = document.createElement('button');
+        btnEmptyAdd.id = 'btn-empty-add';
+        btnEmptyAdd.className = 'btn-empty-state';
+
+        const emptyIcon = document.createElement('div');
+        emptyIcon.className = 'empty-icon';
+        emptyIcon.textContent = '+';
+
+        const emptyText = document.createElement('div');
+        emptyText.className = 'empty-text';
+        emptyText.textContent = 'Ajouter un premier compte';
+
+        btnEmptyAdd.appendChild(emptyIcon);
+        btnEmptyAdd.appendChild(emptyText);
+        btnEmptyAdd.addEventListener('click', () => openModal('add'));
+
+        emptyContainer.appendChild(btnEmptyAdd);
+        accountsList.appendChild(emptyContainer);
         return;
     }
 
     accounts.forEach(acc => {
-        const card = document.createElement('div');
-        card.className = 'account-card';
-
-        // Apply background image if exists
-        if (acc.cardImage) {
-            // Use linear gradient to darken image for readability
-            // Path needs to be CSS escaped effectively, but simple replace usually works for paths. 
-            // Better to use CSS.escape if we were passing weird chars, but here replace is okay for quotes.
-            const safePath = acc.cardImage.replace(/\\/g, '/').replace(/'/g, "\\'");
-            card.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.9)), url('${safePath}')`;
-            card.style.backgroundSize = 'cover';
-            card.style.backgroundPosition = 'center';
-            card.classList.add('has-bg');
-        }
-
-        const gameTypeLabel = acc.gameType === 'league' ? 'League of Legends' : 'Valorant';
-
-        let rankHTML = '';
-        if (acc.stats && acc.stats.rank) {
-            const isUnranked = acc.stats.rank === 'Unranked';
-            rankHTML = `
-                <div class="rank-section">
-                    <div class="rank-current">
-                        <div class="rank-header">Rank Actuel</div>
-                        <div class="rank-display">
-                            <img src="${acc.stats.rankIcon}" alt="${escapeHtml(acc.stats.rank)}" class="rank-icon" onerror="this.style.display='none'">
-                            <span class="rank-name">${escapeHtml(acc.stats.rank)}</span>
-                        </div>
-                    </div>
-                    ${isUnranked && acc.stats.peakRank && acc.stats.peakRank !== 'Unranked' ? `
-                    <div class="rank-peak">
-                        <div class="rank-header">Peak Rank</div>
-                        <div class="rank-display">
-                            <img src="${acc.stats.peakRankIcon}" alt="${escapeHtml(acc.stats.peakRank)}" class="rank-icon" onerror="this.style.display='none'">
-                            <span class="rank-name">${escapeHtml(acc.stats.peakRank)}</span>
-                        </div>
-                    </div>
-                    ` : ''}
-                </div>
-            `;
-        } else if (acc.riotId) {
-            rankHTML = `
-                <div class="rank-section">
-                    <div class="rank-loading">Chargement des stats...</div>
-                </div>
-            `;
-        }
-
-        // Add z-index to content to ensure it sits above background
-        card.innerHTML = `
-            <div class="card-content" style="position: relative; z-index: 2;">
-                <div class="card-top-section" style="display: flex; justify-content: space-between; width: 100%; margin-bottom: 8px;">
-                    <div class="card-info" style="flex: 1;">
-                        <div class="account-name">${escapeHtml(acc.name)}</div>
-                        ${acc.riotId ? `<div class="account-riot-id" style="font-size: 12px; color: var(--text-muted); opacity: 0.8; margin-top: 4px;">${escapeHtml(acc.riotId)}</div>` : ''}
-                    </div>
-                    <div class="card-right-side" style="display: flex; flex-direction: column; align-items: flex-end; gap: 12px;">
-                        <div class="card-display-image">
-                            <img src="assets/${acc.gameType === 'league' ? 'league' : 'valorant'}.png" alt="${escapeHtml(acc.gameType)}">
-                        </div>
-                    </div>
-                </div>
-
-                ${rankHTML}
-
-                <div class="card-actions" style="display: flex; gap: 8px; position: relative;">
-                    <button class="btn-switch" data-id="${acc.id}" data-game="${acc.gameType}" style="flex: 1;">CONNECTER</button>
-                    <div class="settings-wrapper" style="position: relative;">
-                        <button class="btn-settings" data-id="${acc.id}" title="Paramètres du compte">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings-icon lucide-settings"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>
-                        </button>
-                        <div class="settings-menu" data-id="${acc.id}" style="display: none;">
-                            <button class="menu-item" data-action="edit">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                                Modifier le compte
-                            </button>
-                            <button class="menu-item menu-item-danger" data-action="delete">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                Supprimer le compte
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        addDragHandlers(card, acc.id);
-        accountsList.appendChild(card);
+        accountsList.appendChild(createAccountCard(acc));
     });
-
-    addAccountCardListeners();
 }
 
-function addAccountCardListeners() {
-    document.querySelectorAll('.btn-switch').forEach(btn => {
-        btn.addEventListener('click', (e) => switchAccount(e.target.dataset.id, e.target.dataset.game));
+function createAccountCard(acc) {
+    const card = document.createElement('div');
+    card.className = 'account-card';
+    if (acc.cardImage) {
+        const safePath = acc.cardImage.replace(/\\/g, '/').replace(/'/g, "\\'");
+        card.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.9)), url('${safePath}')`;
+        card.style.backgroundSize = 'cover';
+        card.style.backgroundPosition = 'center';
+        card.classList.add('has-bg');
+    }
+
+    const cardContent = document.createElement('div');
+    cardContent.className = 'card-content';
+    cardContent.style.position = 'relative';
+    cardContent.style.zIndex = '2';
+
+    // Top Section
+    const topSection = document.createElement('div');
+    topSection.className = 'card-top-section';
+    topSection.style.display = 'flex';
+    topSection.style.justifyContent = 'space-between';
+    topSection.style.width = '100%';
+    topSection.style.marginBottom = '8px';
+
+    const cardInfo = document.createElement('div');
+    cardInfo.className = 'card-info';
+    cardInfo.style.flex = '1';
+
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'account-name';
+    nameDiv.textContent = acc.name;
+    cardInfo.appendChild(nameDiv);
+
+    if (acc.riotId) {
+        const riotIdDiv = document.createElement('div');
+        riotIdDiv.className = 'account-riot-id';
+        riotIdDiv.style.fontSize = '12px';
+        riotIdDiv.style.color = 'var(--text-muted)';
+        riotIdDiv.style.opacity = '0.8';
+        riotIdDiv.style.marginTop = '4px';
+        riotIdDiv.textContent = acc.riotId;
+        cardInfo.appendChild(riotIdDiv);
+    }
+    topSection.appendChild(cardInfo);
+
+    const cardRight = document.createElement('div');
+    cardRight.className = 'card-right-side';
+    cardRight.style.display = 'flex';
+    cardRight.style.flexDirection = 'column';
+    cardRight.style.alignItems = 'flex-end';
+    cardRight.style.gap = '12px';
+
+    const displayImage = document.createElement('div');
+    displayImage.className = 'card-display-image';
+    const gameIcon = document.createElement('img');
+    gameIcon.src = `assets/${acc.gameType === 'league' ? 'league' : 'valorant'}.png`;
+    gameIcon.alt = acc.gameType;
+    displayImage.appendChild(gameIcon);
+    cardRight.appendChild(displayImage);
+    topSection.appendChild(cardRight);
+
+    cardContent.appendChild(topSection);
+
+    // Rank Section
+    if (acc.stats && acc.stats.rank) {
+        const rankSection = document.createElement('div');
+        rankSection.className = 'rank-section';
+
+        const rankCurrent = document.createElement('div');
+        rankCurrent.className = 'rank-current';
+
+        const rankHeader = document.createElement('div');
+        rankHeader.className = 'rank-header';
+        rankHeader.textContent = 'Rank Actuel';
+        rankCurrent.appendChild(rankHeader);
+
+        const rankDisplay = document.createElement('div');
+        rankDisplay.className = 'rank-display';
+        const rankImg = document.createElement('img');
+        rankImg.src = acc.stats.rankIcon;
+        rankImg.alt = acc.stats.rank;
+        rankImg.className = 'rank-icon';
+        rankImg.onerror = () => rankImg.style.display = 'none';
+
+        const rankName = document.createElement('span');
+        rankName.className = 'rank-name';
+        rankName.textContent = acc.stats.rank;
+
+        rankDisplay.appendChild(rankImg);
+        rankDisplay.appendChild(rankName);
+        rankCurrent.appendChild(rankDisplay);
+        rankSection.appendChild(rankCurrent);
+
+        if (acc.stats.rank === 'Unranked' && acc.stats.peakRank && acc.stats.peakRank !== 'Unranked') {
+            const peakSection = document.createElement('div');
+            peakSection.className = 'rank-peak';
+
+            const peakHeader = document.createElement('div');
+            peakHeader.className = 'rank-header';
+            peakHeader.textContent = 'Peak Rank';
+            peakSection.appendChild(peakHeader);
+
+            const peakDisplay = document.createElement('div');
+            peakDisplay.className = 'rank-display';
+            const peakImg = document.createElement('img');
+            peakImg.src = acc.stats.peakRankIcon;
+            peakImg.alt = acc.stats.peakRank;
+            peakImg.className = 'rank-icon';
+            peakImg.onerror = () => peakImg.style.display = 'none';
+
+            const peakName = document.createElement('span');
+            peakName.className = 'rank-name';
+            peakName.textContent = acc.stats.peakRank;
+
+            peakDisplay.appendChild(peakImg);
+            peakDisplay.appendChild(peakName);
+            peakSection.appendChild(peakDisplay);
+            rankSection.appendChild(peakSection);
+        }
+        cardContent.appendChild(rankSection);
+    } else if (acc.riotId) {
+        const rankSection = document.createElement('div');
+        rankSection.className = 'rank-section';
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'rank-loading';
+        loadingDiv.textContent = 'Chargement des stats...';
+        rankSection.appendChild(loadingDiv);
+        cardContent.appendChild(rankSection);
+    }
+
+    // Actions
+    const cardActions = document.createElement('div');
+    cardActions.className = 'card-actions';
+    cardActions.style.display = 'flex';
+    cardActions.style.gap = '8px';
+    cardActions.style.position = 'relative';
+
+    const btnSwitch = document.createElement('button');
+    btnSwitch.className = 'btn-switch';
+    btnSwitch.dataset.id = acc.id;
+    btnSwitch.dataset.game = acc.gameType;
+    btnSwitch.style.flex = '1';
+    btnSwitch.textContent = 'CONNECTER';
+    btnSwitch.addEventListener('click', (e) => switchAccount(acc.id, acc.gameType));
+    cardActions.appendChild(btnSwitch);
+
+    const settingsWrapper = document.createElement('div');
+    settingsWrapper.className = 'settings-wrapper';
+    settingsWrapper.style.position = 'relative';
+
+    const btnSettings = document.createElement('button');
+    btnSettings.className = 'btn-settings';
+    btnSettings.title = 'Paramètres du compte';
+    btnSettings.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings-icon lucide-settings"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>`;
+
+    // Create Menu
+    const menu = document.createElement('div');
+    menu.className = 'settings-menu';
+    menu.style.display = 'none';
+
+    const btnEdit = document.createElement('button');
+    btnEdit.className = 'menu-item';
+    btnEdit.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Modifier le compte`;
+    btnEdit.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu.style.display = 'none';
+        openEditModal(acc.id);
     });
 
-    document.querySelectorAll('.btn-settings').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const menu = e.currentTarget.nextElementSibling;
-            document.querySelectorAll('.settings-menu').forEach(m => {
-                if (m !== menu) m.style.display = 'none';
-            });
-            menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+    const btnDelete = document.createElement('button');
+    btnDelete.className = 'menu-item menu-item-danger';
+    btnDelete.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> Supprimer le compte`;
+    btnDelete.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu.style.display = 'none';
+        deleteAccount(acc.id);
+    });
+
+    menu.appendChild(btnEdit);
+    menu.appendChild(btnDelete);
+
+    btnSettings.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Close others
+        document.querySelectorAll('.settings-menu').forEach(m => {
+            if (m !== menu) m.style.display = 'none';
         });
+        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
     });
 
-    document.querySelectorAll('.menu-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const menu = e.currentTarget.closest('.settings-menu');
-            const accountId = menu.dataset.id;
-            const action = e.currentTarget.dataset.action;
+    settingsWrapper.appendChild(btnSettings);
+    settingsWrapper.appendChild(menu);
+    cardActions.appendChild(settingsWrapper);
+    cardContent.appendChild(cardActions);
+
+    card.appendChild(cardContent);
+    addDragHandlers(card, acc.id);
+    return card;
+}
+
+// Global listener for closing menus
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.settings-wrapper')) {
+        document.querySelectorAll('.settings-menu').forEach(menu => {
             menu.style.display = 'none';
-
-            if (action === 'edit') openEditModal(accountId);
-            else if (action === 'delete') deleteAccount(accountId);
         });
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.settings-wrapper')) {
-            document.querySelectorAll('.settings-menu').forEach(menu => {
-                menu.style.display = 'none';
-            });
-        }
-    });
+    }
+});
+/*
+function addAccountCardListeners() {
+   // Replaced by direct event listeners in createAccountCard
 }
+*/
 
 // --- Actions ---
 async function loadAccounts() {
@@ -573,7 +686,7 @@ if (btnBrowsePath) {
         const path = await ipcRenderer.invoke('select-riot-path');
         if (path) {
             settingRiotPath.value = path;
-            saveSettings();
+            await saveSettings();
         }
     });
 }
@@ -682,7 +795,7 @@ async function loadSettings() {
         settingLogs.checked = appConfig.showLogs !== false;
         settingShowQuitModal.checked = appConfig.showQuitModal === true || appConfig.showQuitModal === undefined;
         settingMinimizeToTray.checked = appConfig.minimizeToTray === true || appConfig.minimizeToTray === undefined;
-        
+
         // Get actual auto-start status from system
         const autoStartStatus = await ipcRenderer.invoke('get-auto-start-status');
         settingAutoStart.checked = autoStartStatus.enabled;
@@ -967,18 +1080,47 @@ function showUpdateModal(updateInfo) {
     const latestVersionEl = document.getElementById('update-latest-version');
     const currentVersionEl = document.getElementById('update-current-version');
     const releaseNotesEl = document.getElementById('update-release-notes');
-    
+
     if (latestVersionEl) latestVersionEl.textContent = `v${updateInfo.latestVersion}`;
     if (currentVersionEl) currentVersionEl.textContent = `v${updateInfo.currentVersion}`;
     if (releaseNotesEl) {
         // Convert markdown-like release notes to HTML
-        const htmlNotes = updateInfo.releaseNotes
-            .replace(/\n/g, '<br>')
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>');
-        releaseNotesEl.innerHTML = htmlNotes;
+        // Parse simple markdown to DOM without innerHTML
+        // format: **bold** and *italic* and newlines
+        releaseNotesEl.textContent = ''; // clear
+
+        const lines = updateInfo.releaseNotes.split('\n');
+        lines.forEach(line => {
+            if (!line) {
+                releaseNotesEl.appendChild(document.createElement('br'));
+                return;
+            }
+            const p = document.createElement('div');
+            // Very simple parser for **bold**
+            const parts = line.split(/(\*\*.*?\*\*)/g);
+            parts.forEach(part => {
+                if (part.startsWith('**') && part.endsWith('**')) {
+                    const b = document.createElement('strong');
+                    b.textContent = part.slice(2, -2);
+                    p.appendChild(b);
+                } else {
+                    // Check for italic *...*
+                    const subParts = part.split(/(\*.*?\*)/g);
+                    subParts.forEach(sp => {
+                        if (sp.startsWith('*') && sp.endsWith('*')) {
+                            const i = document.createElement('em');
+                            i.textContent = sp.slice(1, -1);
+                            p.appendChild(i);
+                        } else {
+                            p.appendChild(document.createTextNode(sp));
+                        }
+                    });
+                }
+            });
+            releaseNotesEl.appendChild(p);
+        });
     }
-    
+
     modalUpdate.classList.add('show');
 }
 
@@ -1031,7 +1173,7 @@ if (btnUpdateDownload) {
         try {
             btnUpdateDownload.textContent = 'Téléchargement...';
             btnUpdateDownload.disabled = true;
-            
+
             // Start download
             await ipcRenderer.invoke('check-for-updates');
         } catch (error) {
@@ -1052,9 +1194,9 @@ if (btnCheckUpdates) {
         try {
             btnCheckUpdates.disabled = true;
             btnCheckUpdates.textContent = 'Vérification...';
-            
+
             const result = await ipcRenderer.invoke('check-for-updates');
-            
+
             if (result.status === 'not-available' && result.message) {
                 // Development mode - show message
                 showNotification('Mode développement : simulation de vérification', 'info');
