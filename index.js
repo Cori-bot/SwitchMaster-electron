@@ -91,14 +91,14 @@ ipcMain.handle('disable-pin', async (event) => {
 });
 
 ipcMain.handle('select-image', async () => {
-    const result = await dialog.showOpenDialog(mainWindow, {
+    const imageDialogResult = await dialog.showOpenDialog(mainWindow, {
         properties: ['openFile'],
         filters: [
             { name: 'Images', extensions: ['jpg', 'png', 'gif', 'jpeg', 'webp'] }
         ]
     });
-    if (result.canceled || result.filePaths.length === 0) return null;
-    return result.filePaths[0];
+    if (imageDialogResult.canceled || imageDialogResult.filePaths.length === 0) return null;
+    return imageDialogResult.filePaths[0];
 });
 
 // 9. Check Security Enabled
@@ -296,7 +296,7 @@ async function updateTrayMenu() {
                         click: async () => {
                             try {
                                 // Trigger the switch account handler
-                                const result = await ipcMain.emit('switch-account-trigger', lastAccount.id);
+                                const quickConnectResult = await ipcMain.emit('switch-account-trigger', lastAccount.id);
                                 mainWindow.webContents.send('quick-connect-triggered', lastAccount.id);
                             } catch (err) {
                                 console.error('Quick connect error:', err);
@@ -666,9 +666,9 @@ ipcMain.handle('auto-detect-paths', async () => {
                 }
 
                 try {
-                    const data = JSON.parse(output);
+                    const detectionResults = JSON.parse(output);
                     // Find Riot Client
-                    const riotEntry = data.find(item => item.DisplayName && item.DisplayName.includes('Riot Client'));
+                    const riotEntry = detectionResults.find(item => item.DisplayName && item.DisplayName.includes('Riot Client'));
                     let riotPath = null;
                     if (riotEntry && riotEntry.InstallLocation) {
                         riotPath = path.join(riotEntry.InstallLocation, 'RiotClientServices.exe');
@@ -747,12 +747,12 @@ ipcMain.handle('switch-account', async (event, id) => {
         // Wait for window (polling)
         console.log('Waiting for window...');
         let attempts = 0;
-        let found = false;
+        let isWindowFound = false;
         while (attempts < 30) {
             try {
                 const check = await runPs('Check');
                 if (check && check.includes('Found')) {
-                    found = true;
+                    isWindowFound = true;
                     break;
                 }
             } catch (e) {/*ignore*/ }
@@ -760,7 +760,7 @@ ipcMain.handle('switch-account', async (event, id) => {
             attempts++;
         }
 
-        if (!found) throw new Error('Riot Client window not detected.');
+        if (!isWindowFound) throw new Error('Riot Client window not detected.');
         console.log('Window found. Performing Login...');
 
         clipboard.writeText(username);

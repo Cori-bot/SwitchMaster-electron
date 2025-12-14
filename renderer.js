@@ -19,13 +19,9 @@ const btnBrowseImage = document.getElementById('btn-browse-image');
 
 const logsContainer = document.getElementById('logs-container');
 const logsPanel = document.querySelector('.logs-panel');
-const btnClearLogs = document.getElementById('clear-logs');
 
 const statusDot = document.getElementById('status-dot');
 const statusText = document.getElementById('status-text');
-
-const btnLaunchVal = document.getElementById('launch-val');
-const btnLaunchLoL = document.getElementById('launch-lol');
 
 // Settings Elements
 const settingLogs = document.getElementById('setting-logs');
@@ -117,10 +113,18 @@ function showNotification(message, type = 'info') {
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--primary')}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
     `;
 
-    toast.innerHTML = `
-        ${icon}
-        <span class="notification-message">${message}</span>
-    `;
+    // Construire le contenu de manière plus sûre
+    if (icon) {
+        const iconWrapper = document.createElement('span');
+        iconWrapper.className = 'notification-icon-wrapper';
+        iconWrapper.innerHTML = icon; // HTML statique contrôlé par l'application
+        toast.appendChild(iconWrapper);
+    }
+
+    const messageSpan = document.createElement('span');
+    messageSpan.className = 'notification-message';
+    messageSpan.textContent = message;
+    toast.appendChild(messageSpan);
 
     container.appendChild(toast);
 
@@ -145,18 +149,32 @@ function escapeHtml(unsafe) {
 
 // --- UI Rendering ---
 function renderAccounts() {
-    accountsList.innerHTML = '';
+    while (accountsList.firstChild) {
+        accountsList.removeChild(accountsList.firstChild);
+    }
 
     if (accounts.length === 0) {
-        accountsList.innerHTML = `
-            <div class="empty-state-container">
-                <button id="btn-empty-add" class="btn-empty-state">
-                    <div class="empty-icon">+</div>
-                    <div class="empty-text">Ajouter un premier compte</div>
-                </button>
-            </div>
-        `;
-        document.getElementById('btn-empty-add').addEventListener('click', () => openModal('add'));
+        const emptyContainer = document.createElement('div');
+        emptyContainer.className = 'empty-state-container';
+
+        const emptyButton = document.createElement('button');
+        emptyButton.id = 'btn-empty-add';
+        emptyButton.className = 'btn-empty-state';
+
+        const emptyIcon = document.createElement('div');
+        emptyIcon.className = 'empty-icon';
+        emptyIcon.textContent = '+';
+
+        const emptyText = document.createElement('div');
+        emptyText.className = 'empty-text';
+        emptyText.textContent = 'Ajouter un premier compte';
+
+        emptyButton.appendChild(emptyIcon);
+        emptyButton.appendChild(emptyText);
+        emptyContainer.appendChild(emptyButton);
+        accountsList.appendChild(emptyContainer);
+
+        emptyButton.addEventListener('click', () => openModal('add'));
         return;
     }
 
@@ -210,42 +228,114 @@ function renderAccounts() {
         }
 
         // Add z-index to content to ensure it sits above background
-        card.innerHTML = `
-            <div class="card-content" style="position: relative; z-index: 2;">
-                <div class="card-top-section" style="display: flex; justify-content: space-between; width: 100%; margin-bottom: 8px;">
-                    <div class="card-info" style="flex: 1;">
-                        <div class="account-name">${escapeHtml(acc.name)}</div>
-                        ${acc.riotId ? `<div class="account-riot-id" style="font-size: 12px; color: var(--text-muted); opacity: 0.8; margin-top: 4px;">${escapeHtml(acc.riotId)}</div>` : ''}
-                    </div>
-                    <div class="card-right-side" style="display: flex; flex-direction: column; align-items: flex-end; gap: 12px;">
-                        <div class="card-display-image">
-                            <img src="assets/${acc.gameType === 'league' ? 'league' : 'valorant'}.png" alt="${escapeHtml(acc.gameType)}">
-                        </div>
-                    </div>
-                </div>
+        const cardContent = document.createElement('div');
+        cardContent.className = 'card-content';
+        cardContent.style.position = 'relative';
+        cardContent.style.zIndex = '2';
 
-                ${rankHTML}
+        const cardTop = document.createElement('div');
+        cardTop.className = 'card-top-section';
+        cardTop.style.display = 'flex';
+        cardTop.style.justifyContent = 'space-between';
+        cardTop.style.width = '100%';
+        cardTop.style.marginBottom = '8px';
 
-                <div class="card-actions" style="display: flex; gap: 8px; position: relative;">
-                    <button class="btn-switch" data-id="${acc.id}" data-game="${acc.gameType}" style="flex: 1;">CONNECTER</button>
-                    <div class="settings-wrapper" style="position: relative;">
-                        <button class="btn-settings" data-id="${acc.id}" title="Paramètres du compte">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings-icon lucide-settings"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>
-                        </button>
-                        <div class="settings-menu" data-id="${acc.id}" style="display: none;">
-                            <button class="menu-item" data-action="edit">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                                Modifier le compte
-                            </button>
-                            <button class="menu-item menu-item-danger" data-action="delete">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                Supprimer le compte
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
+        const cardInfo = document.createElement('div');
+        cardInfo.className = 'card-info';
+        cardInfo.style.flex = '1';
+
+        const accountNameEl = document.createElement('div');
+        accountNameEl.className = 'account-name';
+        accountNameEl.textContent = acc.name;
+        cardInfo.appendChild(accountNameEl);
+
+        if (acc.riotId) {
+            const riotIdEl = document.createElement('div');
+            riotIdEl.className = 'account-riot-id';
+            riotIdEl.style.fontSize = '12px';
+            riotIdEl.style.color = 'var(--text-muted)';
+            riotIdEl.style.opacity = '0.8';
+            riotIdEl.style.marginTop = '4px';
+            riotIdEl.textContent = acc.riotId;
+            cardInfo.appendChild(riotIdEl);
+        }
+
+        const cardRight = document.createElement('div');
+        cardRight.className = 'card-right-side';
+        cardRight.style.display = 'flex';
+        cardRight.style.flexDirection = 'column';
+        cardRight.style.alignItems = 'flex-end';
+        cardRight.style.gap = '12px';
+
+        const cardDisplayImage = document.createElement('div');
+        cardDisplayImage.className = 'card-display-image';
+        const gameImg = document.createElement('img');
+        gameImg.src = `assets/${acc.gameType === 'league' ? 'league' : 'valorant'}.png`;
+        gameImg.alt = acc.gameType;
+        cardDisplayImage.appendChild(gameImg);
+        cardRight.appendChild(cardDisplayImage);
+
+        cardTop.appendChild(cardInfo);
+        cardTop.appendChild(cardRight);
+        cardContent.appendChild(cardTop);
+
+        // Partie rank (HTML contrôlé mais contenant des images et du texte déjà échappé)
+        if (rankHTML) {
+            const rankWrapper = document.createElement('div');
+            rankWrapper.className = 'rank-wrapper';
+            rankWrapper.innerHTML = rankHTML; // source contrôlée via escapeHtml
+            cardContent.appendChild(rankWrapper);
+        }
+
+        const cardActions = document.createElement('div');
+        cardActions.className = 'card-actions';
+        cardActions.style.display = 'flex';
+        cardActions.style.gap = '8px';
+        cardActions.style.position = 'relative';
+
+        const btnSwitch = document.createElement('button');
+        btnSwitch.className = 'btn-switch';
+        btnSwitch.dataset.id = acc.id;
+        btnSwitch.dataset.game = acc.gameType;
+        btnSwitch.style.flex = '1';
+        btnSwitch.textContent = 'CONNECTER';
+
+        const settingsWrapper = document.createElement('div');
+        settingsWrapper.className = 'settings-wrapper';
+        settingsWrapper.style.position = 'relative';
+
+        const btnSettings = document.createElement('button');
+        btnSettings.className = 'btn-settings';
+        btnSettings.dataset.id = acc.id;
+        btnSettings.title = 'Paramètres du compte';
+        btnSettings.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings-icon lucide-settings"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>';
+
+        const settingsMenu = document.createElement('div');
+        settingsMenu.className = 'settings-menu';
+        settingsMenu.dataset.id = acc.id;
+        settingsMenu.style.display = 'none';
+
+        const btnEdit = document.createElement('button');
+        btnEdit.className = 'menu-item';
+        btnEdit.dataset.action = 'edit';
+        btnEdit.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Modifier le compte';
+
+        const btnDelete = document.createElement('button');
+        btnDelete.className = 'menu-item menu-item-danger';
+        btnDelete.dataset.action = 'delete';
+        btnDelete.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Supprimer le compte';
+
+        settingsMenu.appendChild(btnEdit);
+        settingsMenu.appendChild(btnDelete);
+
+        settingsWrapper.appendChild(btnSettings);
+        settingsWrapper.appendChild(settingsMenu);
+
+        cardActions.appendChild(btnSwitch);
+        cardActions.appendChild(settingsWrapper);
+
+        cardContent.appendChild(cardActions);
+        card.appendChild(cardContent);
 
         addDragHandlers(card, acc.id);
         accountsList.appendChild(card);
@@ -971,11 +1061,16 @@ function showUpdateModal(updateInfo) {
     if (latestVersionEl) latestVersionEl.textContent = `v${updateInfo.latestVersion}`;
     if (currentVersionEl) currentVersionEl.textContent = `v${updateInfo.currentVersion}`;
     if (releaseNotesEl) {
-        // Convert markdown-like release notes to HTML
-        const htmlNotes = updateInfo.releaseNotes
+        // Convert markdown-like release notes to un petit sous-ensemble de HTML maîtrisé
+        const safeText = (updateInfo.releaseNotes || '')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+        const htmlNotes = safeText
             .replace(/\n/g, '<br>')
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.*?)\*/g, '<em>$1</em>');
+
         releaseNotesEl.innerHTML = htmlNotes;
     }
     
