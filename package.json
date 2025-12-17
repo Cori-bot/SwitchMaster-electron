@@ -28,7 +28,7 @@
         "publish": {
             "provider": "github",
             "owner": "Cori-bot",
-            "repo": "SwitchMaster-electron",
+            "repo": "SwitchMaster-v2",
             "private": false,
             "releaseType": "release"
         },
