@@ -1,7 +1,7 @@
 // IPC sécurisé exposé par preload.js
 const ipcRenderer = window.ipc;
 
-// DOM Elements
+// DOM Elements;
 const accountsList = document.getElementById('accounts-list');
 const btnAddAccount = document.getElementById('btn-add-account');
 const modalAddAccount = document.getElementById('add-account-modal');
@@ -185,7 +185,7 @@ function renderAccounts() {
         // Apply background image if exists
         if (acc.cardImage) {
             // Use linear gradient to darken image for readability
-            // Path needs to be CSS escaped effectively, but simple replace usually works for paths. 
+            // Path needs to be CSS escaped effectively, but simple replace usually works for paths.
             // Better to use CSS.escape if we were passing weird chars, but here replace is okay for quotes.
             const safePath = acc.cardImage.replace(/\\/g, '/').replace(/'/g, "\\'");
             card.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.9)), url('${safePath}')`;
@@ -194,7 +194,6 @@ function renderAccounts() {
             card.classList.add('has-bg');
         }
 
-        const gameTypeLabel = acc.gameType === 'league' ? 'League of Legends' : 'Valorant';
 
         let rankHTML = '';
         if (acc.stats && acc.stats.rank) {
@@ -731,9 +730,9 @@ if (modalError) modalError.addEventListener('click', (e) => {
 
 async function checkStatus() {
     try {
-        const res = await ipcRenderer.invoke('get-status');
-        if (res.status === 'Active' && res.accountId) {
-            const acc = accounts.find(a => a.id === res.accountId);
+        const statusResponse = await ipcRenderer.invoke('get-status');
+        if (statusResponse.status === 'Active' && statusResponse.accountId) {
+            const acc = accounts.find(a => a.id === statusResponse.accountId);
             if (acc) {
                 statusText.textContent = `Active: ${acc.name}`;
                 statusDot.classList.add('active');
@@ -743,7 +742,7 @@ async function checkStatus() {
                 return;
             }
         }
-        statusText.textContent = res.status;
+        statusText.textContent = statusResponse.status;
         statusDot.classList.add('active');
         document.querySelectorAll('.account-card').forEach(card => card.classList.remove('active-account'));
     } catch (err) {
@@ -932,8 +931,8 @@ function showError(msg) {
 
 pinButtons.forEach(btn => {
     btn.addEventListener('click', () => {
-        const val = btn.getAttribute('data-val');
-        if (val !== null) handlePinInput(val);
+        const buttonValue = btn.getAttribute('data-val');
+        if (buttonValue !== null) handlePinInput(buttonValue);
     });
 });
 
@@ -1148,9 +1147,9 @@ if (btnCheckUpdates) {
             btnCheckUpdates.disabled = true;
             btnCheckUpdates.textContent = 'Vérification...';
             
-            const result = await ipcRenderer.invoke('check-for-updates');
+            const updateCheckResult = await ipcRenderer.invoke('check-for-updates');
             
-            if (result.status === 'not-available' && result.message) {
+            if (updateCheckResult.status === 'not-available' && updateCheckResult.message) {
                 // Development mode - show message
                 showNotification('Mode développement : simulation de vérification', 'info');
                 btnCheckUpdates.disabled = false;
@@ -1167,9 +1166,9 @@ if (btnCheckUpdates) {
 }
 
 // Handle update installation
-let updateDownloaded = false;
+let isUpdateDownloaded = false;
 ipcRenderer.on('update-downloaded', () => {
-    updateDownloaded = true;
+    isUpdateDownloaded = true;
     if (btnUpdateDownload) {
         btnUpdateDownload.textContent = 'Installer maintenant';
         btnUpdateDownload.disabled = false;

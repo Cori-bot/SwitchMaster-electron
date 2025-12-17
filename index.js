@@ -3,13 +3,19 @@ const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs-extra');
 const yaml = require('yaml');
-const { v4: uuidv4 } = require('uuid');
 const chokidar = require('chokidar');
 const crypto = require('crypto');
 const { fetchAccountStats } = require('./statsService');
 const { spawn, exec } = require('child_process');
 
 // --- Constants & Paths ---
+const WINDOW_DEFAULT_HEIGHT = 700;
+const WINDOW_DEFAULT_WIDTH = 1000;
+const WINDOW_MIN_HEIGHT = 600;
+const WINDOW_MIN_WIDTH = 600;
+const RIOT_PROCESS_CHECK_INTERVAL = 5000; // 5 seconds
+const PROCESS_TERMINATION_DELAY = 2000; // 2 seconds
+
 const APP_DATA_PATH = app.getPath('userData');
 const ACCOUNTS_FILE = path.join(APP_DATA_PATH, 'accounts.json');
 const CONFIG_FILE = path.join(APP_DATA_PATH, 'config.json');
@@ -18,7 +24,7 @@ const PRIVATE_SETTINGS_FILE = 'RiotClientPrivateSettings.yaml';
 
 // Get scripts path (works in both dev and production)
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
-const SCRIPTS_PATH = isDev 
+const SCRIPTS_PATH = isDev
     ? path.join(__dirname, 'assets', 'scripts')
     : path.join(process.resourcesPath, 'scripts');
 
@@ -191,10 +197,10 @@ async function saveAccountsMeta(accounts) {
 // --- Main Window ---
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 1000,
-        height: 700,
-        minWidth: 600,
-        minHeight: 600,
+        width: WINDOW_DEFAULT_WIDTH,
+        height: WINDOW_DEFAULT_HEIGHT,
+        minWidth: WINDOW_MIN_WIDTH,
+        minHeight: WINDOW_MIN_HEIGHT,
         webPreferences: {
             // Nouveau modèle sécurisé : pas de nodeIntegration, preload isolé
             nodeIntegration: false,
@@ -296,7 +302,7 @@ async function updateTrayMenu() {
                         click: async () => {
                             try {
                                 // Trigger the switch account handler
-                                const quickConnectResult = await ipcMain.emit('switch-account-trigger', lastAccount.id);
+                                await ipcMain.emit('switch-account-trigger', lastAccount.id);
                                 mainWindow.webContents.send('quick-connect-triggered', lastAccount.id);
                             } catch (err) {
                                 console.error('Quick connect error:', err);
@@ -347,7 +353,7 @@ function monitorRiotProcess() {
                 }
             }
         });
-    }, 5000); // Check every 5 seconds
+    }, RIOT_PROCESS_CHECK_INTERVAL);
 }
 
 // --- Auto-start functionality
@@ -521,7 +527,7 @@ ipcMain.handle('get-account-credentials', async (event, accountId) => {
 
 // 2. Add Account (with credentials)
 ipcMain.handle('add-account', async (event, { name, username, password, riotId, gameType, cardImage }) => {
-    const id = uuidv4();
+    const id = crypto.randomUUID();
 
     // Encrypt credentials
     const encryptedUsername = encryptData(username);
@@ -708,7 +714,7 @@ ipcMain.handle('switch-account', async (event, id) => {
         await new Promise((resolve) => {
             exec('taskkill /F /IM "RiotClientServices.exe" /IM "LeagueClient.exe" /IM "VALORANT.exe"', () => resolve());
         });
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, PROCESS_TERMINATION_DELAY));
     } catch (e) {
         console.log('Processes cleanup err:', e.message);
     }
