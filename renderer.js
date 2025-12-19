@@ -1,7 +1,7 @@
 // IPC sécurisé exposé par preload.js
 const ipcRenderer = window.ipc;
 
-// DOM Elements;
+// DOM Elements
 const accountsList = document.getElementById("accounts-list");
 const btnAddAccount = document.getElementById("btn-add-account");
 const modalAddAccount = document.getElementById("add-account-modal");
@@ -86,6 +86,12 @@ let currentPinInput = "";
 let isSettingPin = false;
 let confirmPin = "";
 const NOTIFICATION_DISPLAY_TIME_MS = 3000; // 3 secondes
+const SETTINGS_AUTOSAVE_DELAY_MS = 500;
+const PIN_PROCESS_DELAY_MS = 100;
+const PIN_ERROR_RESET_DELAY_MS = 1000;
+const ERROR_SHAKE_DELAY_MS = 1000;
+const VIEW_SWITCH_TRANSITION_DELAY_MS = 200;
+const CURRENT_APP_VERSION = "2.3.0";
 
 // --- Logging ---
 const isDev = window.env ? window.env.isDev : false;
@@ -115,18 +121,19 @@ function showNotification(message, type = "info") {
   toast.className = `notification-toast ${type}`;
 
   let icon = "";
-  if (type === "success")
+  if (type === "success") {
     icon = `
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue("--success")}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
     `;
-  else if (type === "error")
+  } else if (type === "error") {
     icon = `
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff4655" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
     `;
-  else
+  } else {
     icon = `
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${getComputedStyle(document.documentElement).getPropertyValue("--primary")}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
     `;
+  }
 
   // Construire le contenu de manière plus sûre
   if (icon) {
@@ -1012,7 +1019,7 @@ async function saveSettings() {
 
 settingRiotPath.addEventListener("input", () => {
   clearTimeout(window.saveTimeout);
-  window.saveTimeout = setTimeout(saveSettings, 500);
+  window.saveTimeout = setTimeout(saveSettings, SETTINGS_AUTOSAVE_DELAY_MS);
 });
 
 // Settings: Security
@@ -1066,7 +1073,7 @@ function handlePinInput(value) {
     currentPinInput += value;
     updatePinDisplay();
   }
-  if (currentPinInput.length === 4) setTimeout(processPin, 100);
+  if (currentPinInput.length === 4) setTimeout(processPin, PIN_PROCESS_DELAY_MS);
 }
 
 async function processPin() {
@@ -1096,7 +1103,7 @@ async function processPin() {
           lockScreen.querySelector("p").textContent =
             "Entrez un nouveau code PIN à 4 chiffres";
           updatePinDisplay();
-        }, 1000);
+        }, PIN_ERROR_RESET_DELAY_MS);
       }
     }
   } else {
@@ -1119,7 +1126,7 @@ function showError(msg) {
   setTimeout(() => {
     content.classList.remove("shake");
     lockError.classList.remove("show");
-  }, 1000);
+  }, ERROR_SHAKE_DELAY_MS);
 }
 
 pinButtons.forEach((btn) => {
@@ -1143,10 +1150,12 @@ function switchView(viewName) {
     : viewSettings;
   const targetView = viewName === "dashboard" ? viewDashboard : viewSettings;
 
-  if (viewName === "dashboard" && navDashboard.classList.contains("active"))
+  if (viewName === "dashboard" && navDashboard.classList.contains("active")) {
     return;
-  if (viewName === "settings" && navSettings.classList.contains("active"))
+  }
+  if (viewName === "settings" && navSettings.classList.contains("active")) {
     return;
+  }
 
   currentView.classList.remove("fade-in");
   currentView.classList.add("fade-out");
@@ -1166,7 +1175,7 @@ function switchView(viewName) {
       navSettings.classList.add("active");
       btnAddAccount.style.display = "none";
     }
-  }, 200);
+  }, VIEW_SWITCH_TRANSITION_DELAY_MS);
 }
 
 navDashboard.addEventListener("click", () => switchView("dashboard"));
@@ -1258,10 +1267,12 @@ function showUpdateModal(updateInfo) {
   const currentVersionEl = document.getElementById("update-current-version");
   const releaseNotesEl = document.getElementById("update-release-notes");
 
-  if (latestVersionEl)
+  if (latestVersionEl) {
     latestVersionEl.textContent = `v${updateInfo.latestVersion}`;
-  if (currentVersionEl)
+  }
+  if (currentVersionEl) {
     currentVersionEl.textContent = `v${updateInfo.currentVersion}`;
+  }
   if (releaseNotesEl) {
     // Convert markdown-like release notes to un petit sous-ensemble de HTML maîtrisé
     const safeText = (updateInfo.releaseNotes || "")
@@ -1311,7 +1322,7 @@ ipcRenderer.on("update-status", (event, updateInfo) => {
     showUpdateModal({
       available: true,
       latestVersion: updateInfo.version,
-      currentVersion: "2.3.0", // Hardcoded for now
+      currentVersion: CURRENT_APP_VERSION,
       releaseNotes: updateInfo.releaseNotes || "",
     });
   } else if (updateInfo.status === "not-available") {

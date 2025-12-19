@@ -186,7 +186,7 @@ async function fetchLeagueStats(riotId) {
   }
 }
 
-//Main function to fetch stats based on game type
+// Main function to fetch stats based on game type
 async function fetchAccountStats(riotId, gameType) {
   if (!riotId || !riotId.includes("#")) {
     throw new Error("Invalid Riot ID format");
@@ -201,8 +201,4 @@ async function fetchAccountStats(riotId, gameType) {
   }
 }
 
-module.exports = {
-  fetchAccountStats,
-  fetchValorantStats,
-  fetchLeagueStats,
-};
+module.exports = { fetchAccountStats };

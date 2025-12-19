@@ -32,6 +32,8 @@ const PROCESS_TERMINATION_DELAY = 2000; // 2 seconds
 const STATS_REFRESH_INTERVAL_MS = 60000; // 1 minute
 const MAX_WINDOW_CHECK_ATTEMPTS = 30;
 const GAME_LAUNCH_DELAY_MS = 10000; // 10 seconds
+const DEV_UPDATE_NOTIF_DELAY = 3000; // 3 seconds
+const DEV_SIMULATED_UPDATE_DELAY = 2000; // 2 seconds
 
 const APP_DATA_PATH = app.getPath("userData");
 const ACCOUNTS_FILE = path.join(APP_DATA_PATH, "accounts.json");
@@ -107,7 +109,9 @@ function hashPin(pin) {
 
 // 8. Security IPC
 ipcMain.handle("verify-pin", async (event, pin) => {
-  if (!appConfig.security.enabled) return true;
+  if (!appConfig.security.enabled) {
+    return true;
+  }
 
   // Simple SHA256 hash comparison
   const hashed = hashPin(pin);
@@ -140,8 +144,9 @@ ipcMain.handle("select-image", async () => {
       { name: "Images", extensions: ["jpg", "png", "gif", "jpeg", "webp"] },
     ],
   });
-  if (imageDialogResult.canceled || imageDialogResult.filePaths.length === 0)
+  if (imageDialogResult.canceled || imageDialogResult.filePaths.length === 0) {
     return null;
+  }
   return imageDialogResult.filePaths[0];
 });
 
@@ -550,7 +555,7 @@ app.whenReady().then(async () => {
           error: "Mise à jour impossible en mode développement.",
         });
       }
-    }, 3000);
+    }, DEV_UPDATE_NOTIF_DELAY);
   } else {
     devLog("Production mode - checking for updates...");
     autoUpdater.checkForUpdatesAndNotify().catch((err) => {
@@ -721,7 +726,7 @@ async function refreshAllAccountStats() {
   const accounts = await loadAccountsMeta();
   let hasChanged = false;
 
-  for (const account of accounts) {
+  const statsPromises = accounts.map(async (account) => {
     if (account.riotId) {
       try {
         const newStats = await fetchAccountStats(
@@ -740,7 +745,9 @@ async function refreshAllAccountStats() {
         );
       }
     }
-  }
+  });
+
+  await Promise.all(statsPromises);
 
   if (hasChanged) {
     await saveAccountsMeta(accounts);
@@ -798,11 +805,13 @@ ipcMain.handle("auto-detect-paths", async () => {
           let riotPath = null;
           if (riotEntry && riotEntry.InstallLocation) {
             riotPath = path.join(
-              riotEntry.InstallLocation,
-              "RiotClientServices.exe",
-            );
-            if (fs.existsSync(riotPath)) return resolve({ riotPath });
-          }
+        riotEntry.InstallLocation,
+        "RiotClientServices.exe",
+      );
+      if (fs.existsSync(riotPath)) {
+        return resolve({ riotPath });
+      }
+    }
 
           // Fallback search or just return what we have
           resolve(null);
@@ -1068,7 +1077,7 @@ ipcMain.handle("check-for-updates", async () => {
       mainWindow.webContents.send("update-status", { status: "checking" });
 
       // Simulate network delay
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, DEV_SIMULATED_UPDATE_DELAY));
 
       // 50% chance to simulate update available
       const updateAvailable = Math.random() > 0.5;
