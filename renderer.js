@@ -91,7 +91,7 @@ const PIN_PROCESS_DELAY_MS = 100;
 const PIN_ERROR_RESET_DELAY_MS = 1000;
 const ERROR_SHAKE_DELAY_MS = 1000;
 const VIEW_SWITCH_TRANSITION_DELAY_MS = 200;
-const CURRENT_APP_VERSION = "2.3.0";
+const CURRENT_APP_VERSION = "2.4.1";
 const PIN_LENGTH = 4;
 const HTML_ENTITY_APOSTROPHE = "&#039;";
 
@@ -101,19 +101,23 @@ const HTML_ENTITY_APOSTROPHE = "&#039;";
  * @param {string} html La chaîne HTML à insérer
  */
 function setSafeHTML(element, html) {
+  devLog("setSafeHTML called with html length:", html ? html.length : 0);
   // Vide l'élément
   while (element.firstChild) {
     element.removeChild(element.firstChild);
   }
 
   if (!html) {
+    devLog("setSafeHTML: html is empty, returning");
     return;
   }
 
   if (typeof DOMPurify !== "undefined") {
     try {
+      devLog("setSafeHTML: using DOMPurify");
       const fragment = DOMPurify.sanitize(html, { RETURN_DOM_FRAGMENT: true });
       element.appendChild(fragment);
+      devLog("setSafeHTML: DOMPurify success");
       return;
     } catch (e) {
       devError("Erreur DOMPurify:", e);
@@ -121,15 +125,18 @@ function setSafeHTML(element, html) {
   }
 
   // Fallback sur DOMParser si DOMPurify échoue ou est absent
+  devLog("setSafeHTML: using DOMParser fallback");
   const parser = new DOMParser();
   try {
     const doc = parser.parseFromString(html, "text/html");
     const fragment = document.createDocumentFragment();
-    const nodes = doc.body.childNodes;
-    while (nodes.length > 0) {
-      fragment.appendChild(document.importNode(nodes[0], true));
-    }
+    const nodes = Array.from(doc.body.childNodes); // Convert to static array to avoid infinite loop
+    devLog("setSafeHTML: nodes to append:", nodes.length);
+    nodes.forEach((node) => {
+      fragment.appendChild(document.importNode(node, true));
+    });
     element.appendChild(fragment);
+    devLog("setSafeHTML: DOMParser success");
   } catch (e) {
     devError("Erreur fallback DOMParser:", e);
     element.textContent = html;
@@ -143,6 +150,8 @@ function devLog(...args) {
   if (isDev) {
     const logger = console;
     logger.log(...args);
+    // Also send to main process for debugging
+    ipcRenderer.send("log-to-main", { level: "log", args });
   }
 }
 
@@ -150,6 +159,8 @@ function devError(...args) {
   if (isDev) {
     const logger = console;
     logger.error(...args);
+    // Also send to main process for debugging
+    ipcRenderer.send("log-to-main", { level: "error", args });
   }
 }
 
@@ -157,6 +168,8 @@ function devWarn(...args) {
   if (isDev) {
     const logger = console;
     logger.warn(...args);
+    // Also send to main process for debugging
+    ipcRenderer.send("log-to-main", { level: "warn", args });
   }
 }
 
@@ -237,22 +250,32 @@ function escapeHtml(unsafe) {
 
 // --- UI Rendering ---
 function renderAccounts() {
-  while (accountsList.firstChild) {
-    accountsList.removeChild(accountsList.firstChild);
+  devLog("renderAccounts started");
+  try {
+    while (accountsList.firstChild) {
+      accountsList.removeChild(accountsList.firstChild);
+    }
+
+    if (accounts.length === 0) {
+      devLog("No accounts to render, showing empty state");
+      renderEmptyState();
+      return;
+    }
+
+    devLog(`Rendering ${accounts.length} accounts...`);
+    accounts.forEach((acc, index) => {
+      devLog(`Creating card for account ${index}: ${acc.name}`);
+      const card = createAccountCard(acc);
+      addDragHandlers(card, acc.id);
+      accountsList.appendChild(card);
+    });
+
+    devLog("Adding account card listeners...");
+    addAccountCardListeners();
+    devLog("renderAccounts finished successfully");
+  } catch (err) {
+    devError("Error in renderAccounts:", err);
   }
-
-  if (accounts.length === 0) {
-    renderEmptyState();
-    return;
-  }
-
-  accounts.forEach((acc) => {
-    const card = createAccountCard(acc);
-    addDragHandlers(card, acc.id);
-    accountsList.appendChild(card);
-  });
-
-  addAccountCardListeners();
 }
 
 function renderEmptyState() {
@@ -280,36 +303,47 @@ function renderEmptyState() {
 }
 
 function createAccountCard(acc) {
-  const card = document.createElement("div");
-  card.className = "account-card";
+  devLog(`createAccountCard for ${acc.name} started`);
+  try {
+    const card = document.createElement("div");
+    card.className = "account-card";
 
-  if (acc.cardImage) {
-    const safePath = acc.cardImage.replace(/\\/g, "/").replace(/'/g, "\\'");
-    card.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.9)), url('${safePath}')`;
-    card.style.backgroundSize = "cover";
-    card.style.backgroundPosition = "center";
-    card.classList.add("has-bg");
+    if (acc.cardImage) {
+      devLog(`Setting background image: ${acc.cardImage}`);
+      const safePath = acc.cardImage.replace(/\\/g, "/").replace(/'/g, "\\'");
+      card.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.9)), url('${safePath}')`;
+      card.style.backgroundSize = "cover";
+      card.style.backgroundPosition = "center";
+      card.classList.add("has-bg");
+    }
+
+    const cardContent = document.createElement("div");
+    cardContent.className = "card-content";
+    cardContent.style.position = "relative";
+    cardContent.style.zIndex = "2";
+
+    devLog("Calling createCardTop...");
+    cardContent.appendChild(createCardTop(acc));
+
+    devLog("Calling getRankHTML...");
+    const rankHTML = getRankHTML(acc);
+    if (rankHTML) {
+      const rankWrapper = document.createElement("div");
+      rankWrapper.className = "rank-wrapper";
+      setSafeHTML(rankWrapper, rankHTML);
+      cardContent.appendChild(rankWrapper);
+    }
+
+    devLog("Calling createCardActions...");
+    cardContent.appendChild(createCardActions(acc));
+    card.appendChild(cardContent);
+
+    devLog(`createAccountCard for ${acc.name} finished`);
+    return card;
+  } catch (err) {
+    devError(`Error in createAccountCard for ${acc.name}:`, err);
+    throw err;
   }
-
-  const cardContent = document.createElement("div");
-  cardContent.className = "card-content";
-  cardContent.style.position = "relative";
-  cardContent.style.zIndex = "2";
-
-  cardContent.appendChild(createCardTop(acc));
-
-  const rankHTML = getRankHTML(acc);
-  if (rankHTML) {
-    const rankWrapper = document.createElement("div");
-    rankWrapper.className = "rank-wrapper";
-    setSafeHTML(rankWrapper, rankHTML);
-    cardContent.appendChild(rankWrapper);
-  }
-
-  cardContent.appendChild(createCardActions(acc));
-  card.appendChild(cardContent);
-
-  return card;
 }
 
 function createCardTop(acc) {
@@ -361,7 +395,9 @@ function createCardTop(acc) {
 }
 
 function getRankHTML(acc) {
+  devLog(`getRankHTML for ${acc.name} started`);
   if (acc.stats && acc.stats.rank) {
+    devLog(`getRankHTML: Found stats for ${acc.name}`);
     const isUnranked = acc.stats.rank === "Unranked";
     return `
       <div class="rank-section">
@@ -384,73 +420,88 @@ function getRankHTML(acc) {
       </div>
     `;
   } else if (acc.riotId) {
+    devLog(`getRankHTML: No stats for ${acc.name}, but has riotId`);
     return `
       <div class="rank-section">
         <div class="rank-loading">Chargement des stats...</div>
       </div>
     `;
   }
+  devLog(`getRankHTML: No stats and no riotId for ${acc.name}`);
   return "";
 }
 
 function createCardActions(acc) {
-  const cardActions = document.createElement("div");
-  cardActions.className = "card-actions";
-  cardActions.style.display = "flex";
-  cardActions.style.gap = "8px";
-  cardActions.style.position = "relative";
+  devLog(`createCardActions for ${acc.name} started`);
+  try {
+    const cardActions = document.createElement("div");
+    cardActions.className = "card-actions";
+    cardActions.style.display = "flex";
+    cardActions.style.gap = "8px";
+    cardActions.style.position = "relative";
 
-  const btnSwitch = document.createElement("button");
-  btnSwitch.className = "btn-switch";
-  btnSwitch.dataset.id = acc.id;
-  btnSwitch.dataset.game = acc.gameType;
-  btnSwitch.style.flex = "1";
-  btnSwitch.textContent = "CONNECTER";
+    const btnSwitch = document.createElement("button");
+    btnSwitch.className = "btn-switch";
+    btnSwitch.dataset.id = acc.id;
+    btnSwitch.dataset.game = acc.gameType;
+    btnSwitch.style.flex = "1";
+    btnSwitch.textContent = "CONNECTER";
 
-  const settingsWrapper = document.createElement("div");
-  settingsWrapper.className = "settings-wrapper";
-  settingsWrapper.style.position = "relative";
+    const settingsWrapper = document.createElement("div");
+    settingsWrapper.className = "settings-wrapper";
+    settingsWrapper.style.position = "relative";
 
-  const btnSettings = document.createElement("button");
-  btnSettings.className = "btn-settings";
-  btnSettings.dataset.id = acc.id;
-  btnSettings.title = "Paramètres du compte";
+    const btnSettings = document.createElement("button");
+    btnSettings.className = "btn-settings";
+    btnSettings.dataset.id = acc.id;
+    btnSettings.title = "Paramètres du compte";
 
-  const settingsIcon = createSvgIcon("settings", "24", "24");
-  btnSettings.appendChild(settingsIcon);
+    const settingsIcon = createSvgIcon("settings", "24", "24");
+    btnSettings.appendChild(settingsIcon);
 
-  const settingsMenu = createSettingsMenu(acc);
+    devLog("Calling createSettingsMenu...");
+    const settingsMenu = createSettingsMenu(acc);
 
-  settingsWrapper.appendChild(btnSettings);
-  settingsWrapper.appendChild(settingsMenu);
+    settingsWrapper.appendChild(btnSettings);
+    settingsWrapper.appendChild(settingsMenu);
 
-  cardActions.appendChild(btnSwitch);
-  cardActions.appendChild(settingsWrapper);
+    cardActions.appendChild(btnSwitch);
+    cardActions.appendChild(settingsWrapper);
 
-  return cardActions;
+    devLog(`createCardActions for ${acc.name} finished`);
+    return cardActions;
+  } catch (err) {
+    devError(`Error in createCardActions for ${acc.name}:`, err);
+    throw err;
+  }
 }
 
 function createSettingsMenu(acc) {
-  const settingsMenu = document.createElement("div");
-  settingsMenu.className = "settings-menu";
-  settingsMenu.dataset.id = acc.id;
-  settingsMenu.style.display = "none";
+  devLog(`createSettingsMenu for ${acc.name} started`);
+  try {
+    const settingsMenu = document.createElement("div");
+    settingsMenu.className = "settings-menu";
+    settingsMenu.dataset.id = acc.id;
+    settingsMenu.style.display = "none";
 
-  const btnEdit = document.createElement("button");
-  btnEdit.className = "menu-item";
-  btnEdit.dataset.action = "edit";
-  btnEdit.appendChild(createSvgIcon("edit", "16", "16"));
-  btnEdit.appendChild(document.createTextNode(" Modifier le compte"));
+    const editItem = document.createElement("div");
+    editItem.className = "menu-item";
+    editItem.dataset.action = "edit";
+    editItem.textContent = "Modifier";
 
-  const btnDelete = document.createElement("button");
-  btnDelete.className = "menu-item menu-item-danger";
-  btnDelete.dataset.action = "delete";
-  btnDelete.appendChild(createSvgIcon("delete", "16", "16"));
-  btnDelete.appendChild(document.createTextNode(" Supprimer le compte"));
+    const deleteItem = document.createElement("div");
+    deleteItem.className = "menu-item delete";
+    deleteItem.dataset.action = "delete";
+    deleteItem.textContent = "Supprimer";
 
-  settingsMenu.appendChild(btnEdit);
-  settingsMenu.appendChild(btnDelete);
-  return settingsMenu;
+    settingsMenu.appendChild(editItem);
+    settingsMenu.appendChild(deleteItem);
+    devLog(`createSettingsMenu for ${acc.name} finished`);
+    return settingsMenu;
+  } catch (err) {
+    devError(`Error in createSettingsMenu for ${acc.name}:`, err);
+    throw err;
+  }
 }
 
 function createSvgIcon(type, width, height) {
@@ -546,14 +597,18 @@ function addAccountCardListeners() {
 
 // --- Actions ---
 async function loadAccounts() {
+  devLog("loadAccounts called");
   try {
+    devLog("Invoking get-accounts...");
     accounts = await ipcRenderer.invoke("get-accounts");
+    devLog("Accounts loaded:", accounts.length);
     renderAccounts();
+    devLog("renderAccounts done, calling checkStatus...");
     checkStatus();
     for (const acc of accounts) {
       if (acc.riotId && (!acc.stats || !acc.stats.rank)) {
         loadAccountStats(acc.id).catch((err) => {
-          devLog(`Could not load stats for ${acc.name}:`, err.message);
+          devError(`Could not load stats for ${acc.name}:`, err.message);
         });
       }
     }
@@ -896,9 +951,17 @@ if (modalError)
   });
 
 async function checkStatus() {
+  devLog("checkStatus called");
+  if (!statusText) {
+    devError("statusText element not found in DOM");
+    return;
+  }
   try {
+    devLog("Invoking get-status...");
     const statusResponse = await ipcRenderer.invoke("get-status");
-    if (statusResponse.status === "Active" && statusResponse.accountId) {
+    devLog("Status response received:", statusResponse);
+    if (statusResponse && statusResponse.status === "Active" && statusResponse.accountId) {
+      devLog("Status is Active for account:", statusResponse.accountId);
       const acc = accounts.find((a) => a.id === statusResponse.accountId);
       if (acc) {
         statusText.textContent = `Active: ${acc.name}`;
@@ -907,17 +970,26 @@ async function checkStatus() {
           .querySelectorAll(".account-card")
           .forEach((card) => card.classList.remove("active-account"));
         const btn = document.querySelector(`.btn-switch[data-id="${acc.id}"]`);
-        if (btn) btn.closest(".account-card").classList.add("active-account");
+        if (btn) {
+          const card = btn.closest(".account-card");
+          if (card) card.classList.add("active-account");
+        }
+        devLog("Status updated to Active in UI");
         return;
+      } else {
+        devWarn("Active account not found in local list:", statusResponse.accountId);
       }
     }
-    statusText.textContent = statusResponse.status;
+    const displayStatus = statusResponse && statusResponse.status ? statusResponse.status : "Unknown";
+    devLog("Setting status to:", displayStatus);
+    statusText.textContent = displayStatus;
     statusDot.classList.add("active");
     document
       .querySelectorAll(".account-card")
       .forEach((card) => card.classList.remove("active-account"));
+    devLog("Status updated in UI");
   } catch (err) {
-    devError(err);
+    devError("Error in checkStatus:", err);
   }
 }
 
@@ -1186,9 +1258,27 @@ settingMinimizeToTray.addEventListener("change", saveSettings);
 settingAutoStart.addEventListener("change", saveSettings);
 
 // Boot
-loadSettings();
-checkSecurity();
-loadAccounts();
+document.addEventListener("DOMContentLoaded", () => {
+  devLog("DOM fully loaded and parsed. Initializing boot sequence...");
+
+  // Verify critical DOM elements
+  const criticalElements = {
+    accountsList: !!accountsList,
+    statusDot: !!statusDot,
+    statusText: !!statusText,
+    lockScreen: !!lockScreen
+  };
+  devLog("Critical DOM elements check:", criticalElements);
+
+  try {
+    loadSettings();
+    checkSecurity();
+    loadAccounts();
+    devLog("Boot sequence initiated successfully");
+  } catch (err) {
+    devError("Critical error during boot sequence:", err);
+  }
+});
 
 // Listen for quit modal from main process
 ipcRenderer.on("show-quit-modal", () => {

@@ -83,7 +83,6 @@ const SCRIPTS_PATH = isDev
 async function ensureAppData() {
   await fs.ensureDir(APP_DATA_PATH);
 }
-ensureAppData().catch((err) => devError("Error creating app data dir:", err));
 
 // Verify scripts exist
 const automateLoginScript = path.join(SCRIPTS_PATH, "automate_login.ps1");
@@ -97,7 +96,6 @@ async function checkScripts() {
     devError(`Detection script not found: ${detectGamesScript}`);
   }
 }
-checkScripts().catch((err) => devError("Error checking scripts:", err));
 
 let mainWindow;
 let tray = null;
@@ -170,6 +168,18 @@ ipcMain.handle("select-image", async () => {
 // 9. Check Security Enabled
 ipcMain.handle("check-security-enabled", () => {
   return appConfig.security && appConfig.security.enabled;
+});
+
+// 10. Log from Renderer to Main
+ipcMain.on("log-to-main", (event, { level, args }) => {
+  const prefix = `[Renderer ${level.toUpperCase()}]`;
+  if (level === "error") {
+    console.error(prefix, ...args);
+  } else if (level === "warn") {
+    console.warn(prefix, ...args);
+  } else {
+    console.log(prefix, ...args);
+  }
 });
 
 let activeAccountId = null;
@@ -528,6 +538,11 @@ autoUpdater.on("update-downloaded", (info) => {
 async function initApp() {
   try {
     await app.whenReady();
+    
+    // Ensure critical directories and files exist
+    await ensureAppData();
+    await checkScripts();
+    
     await loadConfig();
     await createWindow();
     await updateTrayMenu();
@@ -539,9 +554,13 @@ async function initApp() {
       devWarn("monitorRiotProcess function not found");
     }
 
-    // Initial and periodic stats refresh
-    refreshAllAccountStats(); // Initial refresh
-    setInterval(refreshAllAccountStats, STATS_REFRESH_INTERVAL_MS); // Refresh every minute
+    // Initial stats refresh after a short delay to prioritize UI initialization
+    setTimeout(() => {
+      refreshAllAccountStats().catch(err => devError("Error in initial stats refresh:", err));
+    }, 5000);
+
+    // Periodic stats refresh
+    setInterval(refreshAllAccountStats, STATS_REFRESH_INTERVAL_MS);
 
     const settingsPath = path.join(riotDataPath, PRIVATE_SETTINGS_FILE);
     if (await fs.pathExists(settingsPath)) {
@@ -573,26 +592,19 @@ async function initApp() {
   }
 }
 
-initApp().catch((err) => {
-  devError("Fatal app initialization error:", err);
-});
-
-app.on("window-all-closed", () => {
-  // Don't quit on window close if minimizing to tray
-  if (process.platform !== "darwin" && !appConfig.minimizeToTray) {
-    app.quit();
-  }
-});
-
 // --- IPC Handlers ---
 
 // 1. Get Accounts
 ipcMain.handle("get-accounts", async () => {
-  return await loadAccountsMeta();
+  devLog("IPC: get-accounts called");
+  const accounts = await loadAccountsMeta();
+  devLog(`IPC: returning ${accounts.length} accounts`);
+  return accounts;
 });
 
 // Get account with decrypted credentials (for editing)
 ipcMain.handle("get-account-credentials", async (event, accountId) => {
+  devLog(`IPC: get-account-credentials called for ${accountId}`);
   const accounts = await loadAccountsMeta();
   const account = accounts.find((a) => a.id === accountId);
 
@@ -966,10 +978,18 @@ ipcMain.handle("launch-game", async (event, gameId) => {
 
 // 7. Get Current Status
 ipcMain.handle("get-status", async () => {
-  if (activeAccountId) {
-    return { status: "Active", accountId: activeAccountId };
+  devLog("IPC: get-status called");
+  try {
+    if (activeAccountId) {
+      devLog("IPC: get-status returning Active for", activeAccountId);
+      return { status: "Active", accountId: activeAccountId };
+    }
+    devLog("IPC: get-status returning Ready");
+    return { status: "Ready" };
+  } catch (err) {
+    devError("Error in get-status handler:", err);
+    throw err;
   }
-  return { status: "Ready" };
 });
 
 // 8. Settings IPC
@@ -1119,4 +1139,17 @@ ipcMain.handle("install-update", async () => {
     devError("Install update failed:", error);
     throw error;
   }
+});
+
+// --- Boot ---
+
+app.on("window-all-closed", () => {
+  // Don't quit on window close if minimizing to tray
+  if (process.platform !== "darwin" && !appConfig.minimizeToTray) {
+    app.quit();
+  }
+});
+
+initApp().catch((err) => {
+  devError("Fatal app initialization error:", err);
 });
