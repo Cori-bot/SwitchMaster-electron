@@ -20,18 +20,19 @@ const { fetchAccountStats } = require("./statsService");
 const { spawn, exec } = require("child_process");
 const execAsync = util.promisify(exec);
 
-// Set user data path to a local directory to avoid permission issues
-const userDataPath = path.join(app.getAppPath(), "..\\app-data");
-app.setPath("userData", userDataPath);
-
 // --- Constants & Paths ---
 const WINDOW_DEFAULT_HEIGHT = 700;
 const WINDOW_DEFAULT_WIDTH = 1000;
 const WINDOW_MIN_HEIGHT = 600;
 const WINDOW_MIN_WIDTH = 600;
+
+// Standard path for persistent data (persists between updates)
 const APP_DATA_PATH = path.join(app.getPath("userData"), "SwitchMaster-v2");
 const ACCOUNTS_FILE = path.join(APP_DATA_PATH, "accounts.json");
 const CONFIG_FILE = path.join(APP_DATA_PATH, "config.json");
+
+// Path for legacy data (used for migration)
+const LEGACY_APP_DATA_PATH = path.join(app.getAppPath(), "..\\app-data", "SwitchMaster-v2");
 const PRIVATE_SETTINGS_FILE = "RiotGamesPrivateSettings.yaml";
 const DEFAULT_RIOT_DATA_PATH = path.join(
   process.env.LOCALAPPDATA,
@@ -85,6 +86,24 @@ const SCRIPTS_PATH = isDev ?
 // Ensure User Data Directory Exists
 async function ensureAppData() {
   await fs.ensureDir(APP_DATA_PATH);
+}
+
+// Migrate data from legacy path to standard path if necessary
+async function migrateData() {
+  try {
+    const legacyExists = await fs.pathExists(LEGACY_APP_DATA_PATH);
+    const standardExists = await fs.pathExists(APP_DATA_PATH);
+
+    // Only migrate if legacy exists and standard does NOT yet exist (first run after fix)
+    if (legacyExists && !standardExists) {
+      devLog("Migrating legacy data to persistent storage...");
+      await fs.ensureDir(APP_DATA_PATH);
+      await fs.copy(LEGACY_APP_DATA_PATH, APP_DATA_PATH, { overwrite: false });
+      devLog("Migration successful.");
+    }
+  } catch (err) {
+    devError("Data migration failed:", err);
+  }
 }
 
 // Verify scripts exist
@@ -538,7 +557,8 @@ async function initApp() {
   try {
     await app.whenReady();
     
-    // Ensure critical directories and files exist
+    // Migrate legacy data if present, then ensure directories exist
+    await migrateData();
     await ensureAppData();
     await checkScripts();
     
