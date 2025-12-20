@@ -23,9 +23,7 @@ const statusText = document.getElementById("status-text");
 // Settings Elements
 const settingRiotPath = document.getElementById("setting-riot-path");
 const settingShowQuitModal = document.getElementById("setting-show-quit-modal");
-const settingMinimizeToTray = document.getElementById(
-  "setting-minimize-to-tray",
-);
+const settingMinimizeToTray = document.getElementById("setting-minimize-to-tray");
 const settingAutoStart = document.getElementById("setting-auto-start");
 const btnBrowsePath = document.getElementById("btn-browse-path");
 
@@ -73,9 +71,7 @@ const pinButtons = document.querySelectorAll(".pin-btn");
 const lockError = document.getElementById("lock-error");
 const pinDeleteBtn = document.getElementById("pin-delete");
 
-const settingSecurityEnable = document.getElementById(
-  "setting-security-enable",
-);
+const settingSecurityEnable = document.getElementById("setting-security-enable");
 const securityConfigArea = document.getElementById("security-config-area");
 const btnChangePin = document.getElementById("btn-change-pin");
 
@@ -112,10 +108,10 @@ function setSafeHTML(element, html) {
     return;
   }
 
-  if (typeof DOMPurify !== "undefined") {
+  if (typeof window.DOMPurify !== "undefined") {
     try {
       devLog("setSafeHTML: using DOMPurify");
-      const fragment = DOMPurify.sanitize(html, { RETURN_DOM_FRAGMENT: true });
+      const fragment = window.DOMPurify.sanitize(html, { RETURN_DOM_FRAGMENT: true });
       element.appendChild(fragment);
       devLog("setSafeHTML: DOMPurify success");
       return;
@@ -203,10 +199,7 @@ function showNotification(message, type = "info") {
     const svgContainer = document.createElement("div");
 
     const parser = new DOMParser();
-    const svgNode = parser.parseFromString(
-      icon,
-      "image/svg+xml",
-    ).documentElement;
+    const svgNode = parser.parseFromString(icon, "image/svg+xml").documentElement;
     svgContainer.appendChild(svgNode);
 
     // Ajout sécurisé des nœuds enfants
@@ -239,15 +232,16 @@ function showNotification(message, type = "info") {
 
 // XSS Protection
 function escapeHtml(unsafe) {
-  if (!unsafe) {
+  if (unsafe === undefined || unsafe === null) {
     return "";
   }
-  return unsafe
+  return String(unsafe)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
-    .replace(/'/g, HTML_ENTITY_APOSTROPHE);
+    .replace(/'/g, HTML_ENTITY_APOSTROPHE)
+    .replace(/`/g, "&#096;");
 }
 
 // --- UI Rendering ---
@@ -780,7 +774,9 @@ function addDragHandlers(card, id) {
     card.classList.remove("dragging");
     document
       .querySelectorAll(".account-card")
-      .forEach((c) => c.classList.remove("drag-over"));
+      .forEach((card) => {
+        card.classList.remove("drag-over");
+      });
   });
 
   card.addEventListener("dragover", (e) => {
@@ -991,7 +987,9 @@ async function checkStatus() {
   }
   try {
     const statusResponse = await ipcRenderer.invoke("get-status");
-    const isActive = statusResponse?.status === "Active" && statusResponse?.accountId;
+    const status = statusResponse?.status;
+    const accountId = statusResponse?.accountId;
+    const isActive = status === "Active" && accountId;
 
     if (!isActive) {
       applyDefaultStatus(statusResponse);
@@ -1017,7 +1015,9 @@ function applyDefaultStatus(statusResponse) {
   statusDot.classList.add("active");
   document
     .querySelectorAll(".account-card")
-    .forEach((card) => card.classList.remove("active-account"));
+    .forEach((card) => {
+      card.classList.remove("active-account");
+    });
 }
 
 function applyActiveAccountStatus(acc) {
@@ -1025,7 +1025,9 @@ function applyActiveAccountStatus(acc) {
   statusDot.classList.add("active");
   document
     .querySelectorAll(".account-card")
-    .forEach((card) => card.classList.remove("active-account"));
+    .forEach((card) => {
+      card.classList.remove("active-account");
+    });
 
   const btn = document.querySelector(`.btn-switch[data-id="${acc.id}"]`);
   if (!btn) {
@@ -1048,7 +1050,9 @@ ipcRenderer.on("riot-client-closed", () => {
   // Enlève la bordure verte de toutes les cartes
   document
     .querySelectorAll(".account-card")
-    .forEach((card) => card.classList.remove("active-account"));
+    .forEach((card) => {
+      card.classList.remove("active-account");
+    });
 
   // Et synchronise l'état avec le main process (au cas où)
   checkStatus();
@@ -1133,7 +1137,7 @@ async function checkSecurity() {
 
 function showLockScreen(mode = "verify") {
   currentPinInput = "";
-  updatePinDisplay();
+  void updatePinDisplay();
   lockScreen.style.display = "flex";
   lockError.classList.remove("show");
   const title = lockScreen.querySelector("h2");
@@ -1164,7 +1168,7 @@ function updatePinDisplay() {
 function handlePinInput(value) {
   if (currentPinInput.length < PIN_LENGTH) {
     currentPinInput += value;
-    updatePinDisplay();
+    void updatePinDisplay();
   }
   if (currentPinInput.length === PIN_LENGTH) {
     setTimeout(processPin, PIN_PROCESS_DELAY_MS);
@@ -1176,7 +1180,7 @@ async function processPin() {
     if (!confirmPin) {
       confirmPin = currentPinInput;
       currentPinInput = "";
-      updatePinDisplay();
+      void updatePinDisplay();
       lockScreen.querySelector("h2").textContent = "Confirmer le PIN";
       lockScreen.querySelector("p").textContent =
         "Entrez le code à nouveau pour confirmer";
@@ -1197,7 +1201,7 @@ async function processPin() {
           lockScreen.querySelector("h2").textContent = "Définir un Code PIN";
           lockScreen.querySelector("p").textContent =
             "Entrez un nouveau code PIN à 4 chiffres";
-          updatePinDisplay();
+          void updatePinDisplay();
         }, PIN_ERROR_RESET_DELAY_MS);
       }
     }
@@ -1208,7 +1212,7 @@ async function processPin() {
     } else {
       showError("Code incorrect");
       currentPinInput = "";
-      updatePinDisplay();
+      void updatePinDisplay();
     }
   }
 }
@@ -1236,7 +1240,7 @@ pinButtons.forEach((btn) => {
 if (pinDeleteBtn) {
   pinDeleteBtn.addEventListener("click", () => {
     currentPinInput = currentPinInput.slice(0, -1);
-    updatePinDisplay();
+    void updatePinDisplay();
   });
 }
 
