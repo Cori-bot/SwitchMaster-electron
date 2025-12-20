@@ -18,7 +18,7 @@ const { handleUpdateCheck, simulateUpdateCheck } = require("./updater");
 const { fetchAccountStats } = require("../../statsService");
 const path = require("path");
 
-function setupIpcHandlers(mainWindow, launchGame, setAutoStart, getAutoStartStatus) {
+function setupIpcHandlers(mainWindow, launchGame, setAutoStart, getAutoStartStatus, getStatus) {
   // Accounts
   ipcMain.handle("get-accounts", async () => await loadAccountsMeta());
   ipcMain.handle("get-account-credentials", async (e, id) => await getAccountCredentials(id));
@@ -113,8 +113,7 @@ function setupIpcHandlers(mainWindow, launchGame, setAutoStart, getAutoStartStat
   });
 
   ipcMain.handle("get-status", async () => {
-    // This is simplified, real logic would track activeAccountId
-    return { status: "Ready" }; 
+    return await getStatus(); 
   });
 
   ipcMain.handle("fetch-account-stats", async (e, id) => {

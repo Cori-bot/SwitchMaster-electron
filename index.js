@@ -5,7 +5,7 @@ const { refreshAllAccountStats } = require("./src/main/accounts");
 const { createWindow, updateTrayMenu } = require("./src/main/window");
 const { setupIpcHandlers } = require("./src/main/ipc");
 const { setupUpdater, handleUpdateCheck } = require("./src/main/updater");
-const { monitorRiotProcess, launchGame, setAutoStart, getAutoStartStatus } = require("./src/main/appLogic");
+const { monitorRiotProcess, launchGame, setAutoStart, getAutoStartStatus, getStatus } = require("./src/main/appLogic");
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 let mainWindow;
@@ -24,7 +24,7 @@ async function initApp() {
       await updateTrayMenu(launchGame, switchAccountTrigger);
     };
 
-    setupIpcHandlers(mainWindow, launchGame, setAutoStart, getAutoStartStatus);
+    setupIpcHandlers(mainWindow, launchGame, setAutoStart, getAutoStartStatus, getStatus);
     setupUpdater(mainWindow);
     await updateTrayMenu(launchGame, switchAccountTrigger);
 

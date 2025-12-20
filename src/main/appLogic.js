@@ -26,18 +26,21 @@ async function launchGame(gameId) {
   const config = getConfig();
   let clientPath = config.riotPath;
   
-  if (gameId === "valorant") {
-    clientPath = path.join(path.dirname(clientPath), "VALORANT.exe");
-  } else if (gameId === "league") {
-    clientPath = path.join(path.dirname(clientPath), "RiotClientServices.exe");
+  // Ensure we use RiotClientServices.exe
+  if (!clientPath.endsWith("RiotClientServices.exe")) {
+    if (await fs.pathExists(clientPath) && (await fs.stat(clientPath)).isDirectory()) {
+      clientPath = path.join(clientPath, "RiotClientServices.exe");
+    } else {
+      clientPath = path.join(path.dirname(clientPath), "RiotClientServices.exe");
+    }
   }
 
   if (!(await fs.pathExists(clientPath))) {
-    throw new Error("Executable not found at: " + clientPath);
+    throw new Error("Executable Riot Client non trouvé à : " + clientPath);
   }
 
-  // Wait for client to be ready if needed
-  await new Promise(resolve => setTimeout(resolve, 10000));
+  // Petit délai pour laisser le temps au client de se stabiliser après le login
+  await new Promise(resolve => setTimeout(resolve, 3000));
 
   let args = [];
   if (gameId === "valorant") {
@@ -46,6 +49,7 @@ async function launchGame(gameId) {
     args = ["--launch-product=league_of_legends", "--launch-patchline=live"];
   }
 
+  console.log(`Launching ${gameId} with: ${clientPath} ${args.join(" ")}`);
   spawn(clientPath, args, { detached: true, stdio: "ignore" }).unref();
 }
 
@@ -66,9 +70,25 @@ function getAutoStartStatus() {
   };
 }
 
+async function getStatus() {
+  const config = getConfig();
+  try {
+    const { stdout } = await execAsync('tasklist /FI "IMAGENAME eq RiotClientServices.exe" /FO CSV');
+    const isRunning = stdout.includes("RiotClientServices.exe");
+    
+    if (isRunning && config.lastAccountId) {
+      return { status: "Active", accountId: config.lastAccountId };
+    }
+    return { status: "Ready" };
+  } catch (e) {
+    return { status: "Ready" };
+  }
+}
+
 module.exports = {
   monitorRiotProcess,
   launchGame,
   setAutoStart,
   getAutoStartStatus,
+  getStatus,
 };
