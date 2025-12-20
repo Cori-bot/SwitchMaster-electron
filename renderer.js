@@ -239,7 +239,9 @@ function showNotification(message, type = "info") {
 
 // XSS Protection
 function escapeHtml(unsafe) {
-  if (!unsafe) return "";
+  if (!unsafe) {
+    return "";
+  }
   return unsafe
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -567,7 +569,9 @@ function addAccountCardListeners() {
       e.stopPropagation();
       const menu = e.currentTarget.nextElementSibling;
       document.querySelectorAll(".settings-menu").forEach((m) => {
-        if (m !== menu) m.style.display = "none";
+        if (m !== menu) {
+          m.style.display = "none";
+        }
       });
       menu.style.display = menu.style.display === "none" ? "block" : "none";
     });
@@ -581,8 +585,11 @@ function addAccountCardListeners() {
       const action = e.currentTarget.dataset.action;
       menu.style.display = "none";
 
-      if (action === "edit") openEditModal(accountId);
-      else if (action === "delete") deleteAccount(accountId);
+      if (action === "edit") {
+        openEditModal(accountId);
+      } else if (action === "delete") {
+        deleteAccount(accountId);
+      }
     });
   });
 
@@ -633,7 +640,9 @@ async function loadAccountStats(accountId) {
 async function openEditModal(id) {
   try {
     const account = await ipcRenderer.invoke("get-account-credentials", id);
-    if (!account) return;
+    if (!account) {
+      return;
+    }
 
     modalTitle.textContent = "Modifier un Compte";
     inputEditId.value = account.id;
@@ -665,7 +674,9 @@ function openModal(mode) {
     const defaultGameRadio = document.querySelector(
       'input[name="game-type"][value="valorant"]',
     );
-    if (defaultGameRadio) defaultGameRadio.checked = true;
+    if (defaultGameRadio) {
+      defaultGameRadio.checked = true;
+    }
   }
 
   modalAddAccount.classList.add("show");
@@ -674,10 +685,13 @@ function openModal(mode) {
 
 async function deleteAccount(id) {
   const account = accounts.find((a) => a.id === id);
-  if (!account) return;
+  if (!account) {
+    return;
+  }
   pendingDeleteAccountId = id;
-  if (deleteAccountTitle)
+  if (deleteAccountTitle) {
     deleteAccountTitle.textContent = `Supprimer "${account.name}" ?`;
+  }
   modalDeleteAccount.classList.add("show");
 }
 
@@ -770,7 +784,9 @@ function addDragHandlers(card, id) {
   });
 
   card.addEventListener("dragover", (e) => {
-    if (e.preventDefault) e.preventDefault();
+    if (e.preventDefault) {
+      e.preventDefault();
+    }
     e.dataTransfer.dropEffect = "move";
     return false;
   });
@@ -828,7 +844,9 @@ async function handleDrop(e) {
       const newAccountsOrder = [];
       for (const id of reorderedIds) {
         const acc = accounts.find((a) => a.id === id);
-        if (acc) newAccountsOrder.push(acc);
+        if (acc) {
+          newAccountsOrder.push(acc);
+        }
       }
       accounts = newAccountsOrder;
     } catch (err) {
@@ -842,17 +860,23 @@ async function handleDrop(e) {
 
 async function switchAccount(id, gameType) {
   const account = accounts.find((a) => a.id === id);
-  if (!account) return;
+  if (!account) {
+    return;
+  }
   pendingAccountId = id;
   pendingGameType = gameType;
   const title = document.getElementById("launch-game-title");
-  if (title) title.textContent = account.name;
+  if (title) {
+    title.textContent = account.name;
+  }
   modalLaunchGame.classList.add("show");
 }
 
 async function performSwitch(id, gameType, shouldLaunch) {
   const account = accounts.find((a) => a.id === id);
-  if (!account) return;
+  if (!account) {
+    return;
+  }
 
   try {
     await ipcRenderer.invoke("switch-account", id);
@@ -873,7 +897,9 @@ async function performSwitch(id, gameType, shouldLaunch) {
 if (btnBrowseImage) {
   btnBrowseImage.addEventListener("click", async () => {
     const path = await ipcRenderer.invoke("select-image");
-    if (path) inputCardImage.value = path;
+    if (path) {
+      inputCardImage.value = path;
+    }
   });
 }
 
@@ -941,14 +967,21 @@ function showErrorModal(message) {
 }
 
 function closeErrorModal() {
-  if (modalError) modalError.classList.remove("show");
+  if (modalError) {
+    modalError.classList.remove("show");
+  }
 }
 
-if (btnCloseError) btnCloseError.addEventListener("click", closeErrorModal);
-if (modalError)
+if (btnCloseError) {
+  btnCloseError.addEventListener("click", closeErrorModal);
+}
+if (modalError) {
   modalError.addEventListener("click", (e) => {
-    if (e.target === modalError) closeErrorModal();
+    if (e.target === modalError) {
+      closeErrorModal();
+    }
   });
+}
 
 async function checkStatus() {
   devLog("checkStatus called");
@@ -972,7 +1005,9 @@ async function checkStatus() {
         const btn = document.querySelector(`.btn-switch[data-id="${acc.id}"]`);
         if (btn) {
           const card = btn.closest(".account-card");
-          if (card) card.classList.add("active-account");
+          if (card) {
+            card.classList.add("active-account");
+          }
         }
         devLog("Status updated to Active in UI");
         return;
@@ -1080,7 +1115,9 @@ btnChangePin.addEventListener("click", () => showLockScreen("set"));
 // Security Functions
 async function checkSecurity() {
   const isEnabled = await ipcRenderer.invoke("check-security-enabled");
-  if (isEnabled) showLockScreen("verify");
+  if (isEnabled) {
+    showLockScreen("verify");
+  }
 }
 
 function showLockScreen(mode = "verify") {
@@ -1105,8 +1142,11 @@ function showLockScreen(mode = "verify") {
 function updatePinDisplay() {
   const dots = lockPinDisplay.querySelectorAll(".pin-dot");
   dots.forEach((dot, index) => {
-    if (index < currentPinInput.length) dot.classList.add("filled");
-    else dot.classList.remove("filled");
+    if (index < currentPinInput.length) {
+        dot.classList.add("filled");
+      } else {
+        dot.classList.remove("filled");
+      }
   });
 }
 
@@ -1115,8 +1155,9 @@ function handlePinInput(value) {
     currentPinInput += value;
     updatePinDisplay();
   }
-  if (currentPinInput.length === PIN_LENGTH)
+  if (currentPinInput.length === PIN_LENGTH) {
     setTimeout(processPin, PIN_PROCESS_DELAY_MS);
+  }
 }
 
 async function processPin() {
@@ -1124,7 +1165,7 @@ async function processPin() {
     if (!confirmPin) {
       confirmPin = currentPinInput;
       currentPinInput = "";
-      updatePinDisplay(); // lgtm [js/unawaited-promise]
+      updatePinDisplay();
       lockScreen.querySelector("h2").textContent = "Confirmer le PIN";
       lockScreen.querySelector("p").textContent =
         "Entrez le code à nouveau pour confirmer";
@@ -1145,7 +1186,7 @@ async function processPin() {
           lockScreen.querySelector("h2").textContent = "Définir un Code PIN";
           lockScreen.querySelector("p").textContent =
             "Entrez un nouveau code PIN à 4 chiffres";
-          updatePinDisplay(); // lgtm [js/unawaited-promise]
+          updatePinDisplay();
         }, PIN_ERROR_RESET_DELAY_MS);
       }
     }
@@ -1156,7 +1197,7 @@ async function processPin() {
     } else {
       showError("Code incorrect");
       currentPinInput = "";
-      updatePinDisplay(); // lgtm [js/unawaited-promise]
+      updatePinDisplay();
     }
   }
 }
@@ -1175,7 +1216,9 @@ function showError(msg) {
 pinButtons.forEach((btn) => {
   btn.addEventListener("click", () => {
     const buttonValue = btn.getAttribute("data-val");
-    if (buttonValue !== null) handlePinInput(buttonValue);
+    if (buttonValue !== null) {
+      handlePinInput(buttonValue);
+    }
   });
 });
 
@@ -1193,10 +1236,7 @@ function switchView(viewName) {
     : viewSettings;
   const targetView = viewName === "dashboard" ? viewDashboard : viewSettings;
 
-  if (viewName === "dashboard" && navDashboard.classList.contains("active")) {
-    return;
-  }
-  if (viewName === "settings" && navSettings.classList.contains("active")) {
+  if (currentView === targetView) {
     return;
   }
 
@@ -1266,7 +1306,7 @@ document.addEventListener("DOMContentLoaded", () => {
     accountsList: !!accountsList,
     statusDot: !!statusDot,
     statusText: !!statusText,
-    lockScreen: !!lockScreen
+    lockScreen: !!lockScreen,
   };
   devLog("Critical DOM elements check:", criticalElements);
 
@@ -1282,7 +1322,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Listen for quit modal from main process
 ipcRenderer.on("show-quit-modal", () => {
-  if (modalQuit) modalQuit.classList.add("show");
+  if (modalQuit) {
+    modalQuit.classList.add("show");
+  }
 });
 
 // Quit Modal Buttons

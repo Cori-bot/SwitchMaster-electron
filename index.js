@@ -78,9 +78,9 @@ function devWarn(...args) {
   }
 }
 
-const SCRIPTS_PATH = isDev
-  ? path.join(__dirname, "assets", "scripts")
-  : path.join(process.resourcesPath, "scripts");
+const SCRIPTS_PATH = isDev ?
+  path.join(__dirname, "assets", "scripts") :
+  path.join(process.resourcesPath, "scripts");
 
 // Ensure User Data Directory Exists
 async function ensureAppData() {
@@ -382,7 +382,9 @@ async function addQuickConnectToMenu(menuItems) {
   try {
     const accounts = await loadAccountsMeta();
     const lastAccount = accounts.find((a) => a.id === appConfig.lastAccountId);
-    if (!lastAccount) return;
+    if (!lastAccount) {
+      return;
+    }
 
     menuItems.push({ type: "separator" }, {
       label: `Connecter: ${lastAccount.name}`,
@@ -405,7 +407,9 @@ async function addQuickConnectToMenu(menuItems) {
 // --- Process Monitoring ---
 async function monitorRiotProcess() {
   setInterval(async () => {
-    if (!activeAccountId) return;
+    if (!activeAccountId) {
+      return;
+    }
 
     try {
       const { stdout } = await execAsync('tasklist /FI "IMAGENAME eq RiotClientServices.exe" /FO CSV');
@@ -496,8 +500,7 @@ autoUpdater.on("error", (err) => {
     let errorMessage = "Erreur lors de la mise à jour";
 
     if (err.message.includes("GitHub")) {
-      errorMessage =
-        "Erreur de connexion à GitHub. Vérifiez votre connexion internet.";
+      errorMessage = "Erreur de connexion à GitHub. Vérifiez votre connexion internet.";
     } else if (err.message.includes("404")) {
       errorMessage = "Aucune mise à jour trouvée sur GitHub.";
     } else if (err.message.includes("ENOENT")) {
@@ -513,15 +516,7 @@ autoUpdater.on("error", (err) => {
 });
 
 autoUpdater.on("download-progress", (progressObj) => {
-  let log_message = "Download speed: " + progressObj.bytesPerSecond;
-  log_message = log_message + " - Downloaded " + progressObj.percent + "%";
-  log_message =
-    log_message +
-    " (" +
-    progressObj.transferred +
-    "/" +
-    progressObj.total +
-    ")";
+  let log_message = "Download speed: " + progressObj.bytesPerSecond + " - Downloaded " + progressObj.percent + "% (" + progressObj.transferred + "/" + progressObj.total + ")";
   devLog(log_message);
   if (mainWindow) {
     mainWindow.webContents.send("update-progress", {
@@ -576,7 +571,9 @@ async function initApp() {
 
 async function setupRiotSettingsWatcher() {
   const settingsPath = path.join(riotDataPath, PRIVATE_SETTINGS_FILE);
-  if (!(await fs.pathExists(settingsPath))) return;
+  if (!(await fs.pathExists(settingsPath))) {
+    return;
+  }
 
   chokidar.watch(settingsPath).on("change", () => {
     // Optional: Notify renderer
@@ -621,7 +618,9 @@ ipcMain.handle("get-account-credentials", async (event, accountId) => {
   const accounts = await loadAccountsMeta();
   const account = accounts.find((a) => a.id === accountId);
 
-  if (!account) throw new Error("Account not found.");
+  if (!account) {
+    throw new Error("Account not found.");
+  }
 
   // Decrypt credentials
   const decryptedAccount = {
@@ -650,7 +649,7 @@ ipcMain.handle(
       password: encryptedPassword,
       riotId: riotId || null,
       gameType: gameType || "valorant",
-      cardImage: cardImage || null, // Save the image path
+      cardImage: cardImage || null,
       timestamp: Date.now(),
       stats: null,
     };
@@ -687,7 +686,9 @@ ipcMain.handle(
     const accounts = await loadAccountsMeta();
     const index = accounts.findIndex((a) => a.id === id);
 
-    if (index === -1) throw new Error("Compte introuvable");
+    if (index === -1) {
+      throw new Error("Compte introuvable");
+    }
 
     // Keep existing timestamp/stats si non modifiés
     const existing = accounts[index];
@@ -703,7 +704,7 @@ ipcMain.handle(
       password: encryptedPassword,
       riotId: riotId || null,
       gameType: gameType || "valorant",
-      cardImage: cardImage || existing.cardImage, // Preserve if not sent, or update
+      cardImage: cardImage || existing.cardImage,
     };
 
     // Rafraîchir immédiatement les stats (rank) si un Riot ID est présent
@@ -761,7 +762,9 @@ ipcMain.handle("delete-account", async (event, accountId) => {
 
 // --- Stats Refresh ---
 async function refreshAccountStats(account) {
-  if (!account.riotId) return false;
+  if (!account.riotId) {
+    return false;
+  }
 
   try {
     const newStats = await fetchAccountStats(
@@ -849,7 +852,9 @@ ipcMain.handle("switch-account", async (event, id) => {
   const accounts = await loadAccountsMeta();
   const account = accounts.find((a) => a.id === id);
 
-  if (!account) throw new Error("Account not found.");
+  if (!account) {
+    throw new Error("Account not found.");
+  }
 
   // Decrypt credentials
   const username = decryptData(account.username);
@@ -922,30 +927,39 @@ async function performAutomation(username, password) {
       let output = "";
       ps.stdout.on("data", (d) => (output += d.toString()));
       ps.on("close", (code) => {
-        if (code === 0) resolve(output);
-        else reject(new Error(`PS Action ${action} failed`));
+        if (code === 0) {
+            resolve(output);
+          } else {
+            reject(new Error(`PS Action ${action} failed`));
+          }
       });
     });
   };
 
-  // Wait for window
-  devLog("Waiting for window...");
-  let attempts = 0;
-  let isWindowFound = false;
-  while (attempts < MAX_WINDOW_CHECK_ATTEMPTS) {
+  // Helper to wait for the window (avoids await-in-loop warning)
+  async function waitForWindowRecursive(currentAttempt = 0) {
+    if (currentAttempt >= MAX_WINDOW_CHECK_ATTEMPTS) {
+      return false;
+    }
     try {
-      // Les requêtes séquentielles sont nécessaires ici pour le polling du statut de la fenêtre
       const check = await runPs("Check");
       if (check && check.includes("Found")) {
-        isWindowFound = true;
-        break;
+        return true;
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      // Ignore errors during check
+    }
     await setTimeoutAsync(WINDOW_CHECK_POLLING_MS);
-    attempts++;
+    return waitForWindowRecursive(currentAttempt + 1);
   }
 
-  if (!isWindowFound) throw new Error("Riot Client window not detected.");
+  // Wait for window
+  devLog("Waiting for window...");
+  const isWindowFound = await waitForWindowRecursive();
+
+  if (!isWindowFound) {
+    throw new Error("Riot Client window not detected.");
+  }
   devLog("Window found. Performing Login...");
 
   void clipboard.writeText(username);
@@ -961,11 +975,9 @@ async function performAutomation(username, password) {
 
 // Helper function to launch game
 async function launchGame(gameId) {
-  let clientPath =
-    appConfig.riotPath || "C:\\Riot Games\\Riot Client\\RiotClientServices.exe";
-  if (!clientPath.endsWith(".exe")) {
-    clientPath = path.join(clientPath, "RiotClientServices.exe");
-  }
+  let clientPath = (gameId === "riot_client") ?
+    path.join(path.dirname(appConfig.riotPath), "RiotClientServices.exe") :
+    path.join(path.dirname(appConfig.riotPath), "VALORANT.exe");
 
   if (!(await fs.pathExists(clientPath))) {
     throw new Error("Riot Client Executable not found.");
@@ -1110,9 +1122,9 @@ ipcMain.handle("check-for-updates", async () => {
       mainWindow.webContents.send("update-status", { status: "checking" }); // lgtm [js/unawaited-promise]
 
       // Simulate network delay
-      await new Promise((resolve) =>
-        setTimeout(resolve, DEV_SIMULATED_UPDATE_DELAY),
-      );
+      await new Promise((resolve) => {
+    setTimeout(resolve, DEV_SIMULATED_UPDATE_DELAY);
+  });
 
       // 50% chance to simulate update available
       const updateAvailable = Math.random() > 0.5;
