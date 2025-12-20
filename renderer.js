@@ -559,9 +559,9 @@ function createSvgIcon(type, width, height) {
 
 function addAccountCardListeners() {
   document.querySelectorAll(".btn-switch").forEach((btn) => {
-    btn.addEventListener("click", (e) =>
-      switchAccount(e.target.dataset.id, e.target.dataset.game),
-    );
+    btn.addEventListener("click", (e) => {
+      switchAccount(e.currentTarget.dataset.id, e.currentTarget.dataset.game);
+    });
   });
 
   document.querySelectorAll(".btn-settings").forEach((btn) => {
@@ -990,41 +990,51 @@ async function checkStatus() {
     return;
   }
   try {
-    devLog("Invoking get-status...");
     const statusResponse = await ipcRenderer.invoke("get-status");
-    devLog("Status response received:", statusResponse);
-    if (statusResponse && statusResponse.status === "Active" && statusResponse.accountId) {
-      devLog("Status is Active for account:", statusResponse.accountId);
-      const acc = accounts.find((a) => a.id === statusResponse.accountId);
-      if (acc) {
-        statusText.textContent = `Active: ${acc.name}`;
-        statusDot.classList.add("active");
-        document
-          .querySelectorAll(".account-card")
-          .forEach((card) => card.classList.remove("active-account"));
-        const btn = document.querySelector(`.btn-switch[data-id="${acc.id}"]`);
-        if (btn) {
-          const card = btn.closest(".account-card");
-          if (card) {
-            card.classList.add("active-account");
-          }
-        }
-        devLog("Status updated to Active in UI");
-        return;
-      } else {
-        devWarn("Active account not found in local list:", statusResponse.accountId);
-      }
+    const isActive = statusResponse?.status === "Active" && statusResponse?.accountId;
+
+    if (!isActive) {
+      applyDefaultStatus(statusResponse);
+      return;
     }
-    const displayStatus = statusResponse && statusResponse.status ? statusResponse.status : "Unknown";
-    devLog("Setting status to:", displayStatus);
-    statusText.textContent = displayStatus;
-    statusDot.classList.add("active");
-    document
-      .querySelectorAll(".account-card")
-      .forEach((card) => card.classList.remove("active-account"));
-    devLog("Status updated in UI");
+
+    const acc = accounts.find((a) => a.id === statusResponse.accountId);
+    if (!acc) {
+      devWarn("Active account not found in local list:", statusResponse.accountId);
+      applyDefaultStatus(statusResponse);
+      return;
+    }
+
+    applyActiveAccountStatus(acc);
   } catch (err) {
     devError("Error in checkStatus:", err);
+  }
+}
+
+function applyDefaultStatus(statusResponse) {
+  const displayStatus = statusResponse?.status || "Unknown";
+  statusText.textContent = displayStatus;
+  statusDot.classList.add("active");
+  document
+    .querySelectorAll(".account-card")
+    .forEach((card) => card.classList.remove("active-account"));
+}
+
+function applyActiveAccountStatus(acc) {
+  statusText.textContent = `Active: ${acc.name}`;
+  statusDot.classList.add("active");
+  document
+    .querySelectorAll(".account-card")
+    .forEach((card) => card.classList.remove("active-account"));
+
+  const btn = document.querySelector(`.btn-switch[data-id="${acc.id}"]`);
+  if (!btn) {
+    return;
+  }
+
+  const card = btn.closest(".account-card");
+  if (card) {
+    card.classList.add("active-account");
   }
 }
 
@@ -1083,6 +1093,7 @@ async function loadSettings() {
 
 async function saveSettings() {
   const newConfig = {
+    ...appConfig,
     theme: "dark",
     riotPath: settingRiotPath.value.trim(),
     showQuitModal: settingShowQuitModal.checked,

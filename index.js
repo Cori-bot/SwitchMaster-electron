@@ -947,7 +947,7 @@ async function performAutomation(username, password) {
         return true;
       }
     } catch (e) {
-      // Ignore errors during check
+      devWarn("Window check attempt failed:", e.message);
     }
     await setTimeoutAsync(WINDOW_CHECK_POLLING_MS);
     return waitForWindowRecursive(currentAttempt + 1);
