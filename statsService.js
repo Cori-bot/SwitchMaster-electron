@@ -95,19 +95,19 @@ async function fetchValorantStats(riotId) {
     const metadata = apiResponse.data.metadata || {};
 
     // Extraction sécurisée des métadonnées
-    const rankTierName = stats.rank?.metadata?.tierName || "Unranked";
+    const rankTierName = (stats.rank && stats.rank.metadata && stats.rank.metadata.tierName) || "Unranked";
     const rankIconUrl =
-      stats.rank?.metadata?.iconUrl ||
+      (stats.rank && stats.rank.metadata && stats.rank.metadata.iconUrl) ||
       "https://trackercdn.com/cdn/tracker.gg/valorant/icons/tiersv2/0.png";
 
-    const peakTierName = stats.peakRank?.metadata?.tierName || "Unranked";
+    const peakTierName = (stats.peakRank && stats.peakRank.metadata && stats.peakRank.metadata.tierName) || "Unranked";
     const peakIconUrl =
-      stats.peakRank?.metadata?.iconUrl ||
+      (stats.peakRank && stats.peakRank.metadata && stats.peakRank.metadata.iconUrl) ||
       "https://trackercdn.com/cdn/tracker.gg/valorant/icons/tiersv2/0.png";
 
     const firstSegment = segments[0] || {};
     const playtimeDisplay =
-      firstSegment.stats?.timePlayed?.displayValue || "0h";
+      (firstSegment.stats && firstSegment.stats.timePlayed && firstSegment.stats.timePlayed.displayValue) || "0h";
     const bannerUrl = apiResponse.data.platformInfo?.avatarUrl || null;
     const activeShard = metadata.activeShard || "unknown";
 
@@ -170,15 +170,15 @@ async function fetchLeagueStats(riotId) {
     const stats = rankedSegment ? rankedSegment.stats : {};
 
     // Rang actuel (tier)
-    const tierMeta = stats.tier?.metadata || {};
+    const tierMeta = (stats.tier && stats.tier.metadata) || {};
     const currentRankName =
-      tierMeta.rankName || stats.tier?.displayValue || "Unranked";
+      tierMeta.rankName || (stats.tier && stats.tier.displayValue) || "Unranked";
     const currentRankIcon = tierMeta.iconUrl || tierMeta.imageUrl || "";
 
     // Playtime : on privilégie timePlayed.displayValue si dispo, sinon matchesPlayed
     const playtime =
-      stats.timePlayed?.displayValue ||
-      stats.matchesPlayed?.displayValue ||
+      (stats.timePlayed && stats.timePlayed.displayValue) ||
+      (stats.matchesPlayed && stats.matchesPlayed.displayValue) ||
       "0 games";
 
     return {

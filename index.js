@@ -42,6 +42,7 @@ const DEFAULT_RIOT_DATA_PATH = path.join(
 
 const RIOT_PROCESS_CHECK_INTERVAL_MS = 10000;
 const STATS_REFRESH_INTERVAL_MS = 60000;
+const INITIAL_STATS_DELAY_MS = 5000;
 const MAX_WINDOW_CHECK_ATTEMPTS = 30;
 const WINDOW_CHECK_POLLING_MS = 1000;
 const LOGIN_ACTION_DELAY_MS = 500;
@@ -52,6 +53,8 @@ const DEV_SIMULATED_UPDATE_DELAY = 2000;
 
 // Get scripts path (works in both dev and production)
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+
+const setTimeoutAsync = util.promisify(setTimeout);
 
 // --- Logging ---
 function devLog(...args) {
@@ -174,11 +177,11 @@ ipcMain.handle("check-security-enabled", () => {
 ipcMain.on("log-to-main", (event, { level, args }) => {
   const prefix = `[Renderer ${level.toUpperCase()}]`;
   if (level === "error") {
-    console.error(prefix, ...args);
+    process.stderr.write(`${prefix} ${args.join(" ")}\n`);
   } else if (level === "warn") {
-    console.warn(prefix, ...args);
+    process.stdout.write(`${prefix} ${args.join(" ")}\n`);
   } else {
-    console.log(prefix, ...args);
+    process.stdout.write(`${prefix} ${args.join(" ")}\n`);
   }
 });
 
@@ -387,7 +390,8 @@ async function addQuickConnectToMenu(menuItems) {
         try {
           // Trigger the switch account handler
           await ipcMain.emit("switch-account-trigger", lastAccount.id);
-          mainWindow.webContents.send("quick-connect-triggered", lastAccount.id);
+          // webContents.send returns void, but we use void operator to satisfy analyzer
+          void mainWindow.webContents.send("quick-connect-triggered", lastAccount.id);
         } catch (err) {
           devError("Quick connect error:", err);
         }
@@ -412,11 +416,11 @@ async function monitorRiotProcess() {
 
         // Notifier le renderer pour qu'il enlève la bordure verte / statut actif
         if (mainWindow) {
-          mainWindow.webContents.send("riot-client-closed");
+          void mainWindow.webContents.send("riot-client-closed");
         }
       }
     } catch (err) {
-      // ignore errors from tasklist
+      devLog("Tasklist check error (ignored):", err.message);
     }
   }, RIOT_PROCESS_CHECK_INTERVAL_MS);
 }
@@ -555,40 +559,49 @@ async function initApp() {
     }
 
     // Initial stats refresh after a short delay to prioritize UI initialization
-    setTimeout(() => {
-      refreshAllAccountStats().catch(err => devError("Error in initial stats refresh:", err));
-    }, 5000);
+    await setTimeoutAsync(INITIAL_STATS_DELAY_MS);
+    refreshAllAccountStats().catch(err => devError("Error in initial stats refresh:", err));
 
     // Periodic stats refresh
     setInterval(refreshAllAccountStats, STATS_REFRESH_INTERVAL_MS);
 
-    const settingsPath = path.join(riotDataPath, PRIVATE_SETTINGS_FILE);
-    if (await fs.pathExists(settingsPath)) {
-      chokidar.watch(settingsPath).on("change", () => {
-        // Optional: Notify renderer
-      });
-    }
+    await setupRiotSettingsWatcher();
 
     // Check for updates on startup
-    if (!app.isPackaged) {
-      devLog("Running in development mode - update checking disabled");
-      // Notify renderer that update is impossible in dev mode
-      setTimeout(() => {
-        if (mainWindow) {
-          mainWindow.webContents.send("update-status", {
-            status: "error",
-            error: "Mise à jour impossible en mode développement.",
-          });
-        }
-      }, DEV_UPDATE_NOTIF_DELAY_MS);
-    } else {
-      devLog("Production mode - checking for updates...");
-      autoUpdater.checkForUpdatesAndNotify().catch((err) => {
-        devError("Initial update check failed:", err);
-      });
-    }
+    await handleUpdateCheck();
   } catch (err) {
     devError("App initialization failed:", err);
+  }
+}
+
+async function setupRiotSettingsWatcher() {
+  const settingsPath = path.join(riotDataPath, PRIVATE_SETTINGS_FILE);
+  if (!(await fs.pathExists(settingsPath))) return;
+
+  chokidar.watch(settingsPath).on("change", () => {
+    // Optional: Notify renderer
+    devLog("Riot settings changed");
+  });
+}
+
+async function handleUpdateCheck() {
+  if (!app.isPackaged) {
+    devLog("Running in development mode - update checking disabled");
+    // Notify renderer that update is impossible in dev mode
+    await setTimeoutAsync(DEV_UPDATE_NOTIF_DELAY_MS);
+    if (mainWindow) {
+      void mainWindow.webContents.send("update-status", {
+        status: "error",
+        error: "Mise à jour impossible en mode développement.",
+      });
+    }
+  } else {
+    devLog("Production mode - checking for updates...");
+    try {
+      await autoUpdater.checkForUpdatesAndNotify();
+    } catch (err) {
+      devError("Initial update check failed:", err);
+    }
   }
 }
 
@@ -774,7 +787,7 @@ async function refreshAllAccountStats() {
   if (hasChanged) {
     await saveAccountsMeta(accounts);
     if (mainWindow) {
-      mainWindow.webContents.send("accounts-updated", accounts);
+      void mainWindow.webContents.send("accounts-updated", accounts);
     }
   }
 }
@@ -872,9 +885,9 @@ async function killRiotProcesses() {
     try {
       await execAsync('taskkill /F /IM "RiotClientServices.exe" /IM "LeagueClient.exe" /IM "VALORANT.exe"');
     } catch (e) {
-      // ignore errors if processes are not running
+      devLog("Taskkill failed (processes might not be running):", e.message);
     }
-    await new Promise((r) => setTimeout(r, PROCESS_TERMINATION_DELAY));
+    await setTimeoutAsync(PROCESS_TERMINATION_DELAY);
   } catch (e) {
     devLog("Processes cleanup err:", e.message);
   }
@@ -921,26 +934,27 @@ async function performAutomation(username, password) {
   let isWindowFound = false;
   while (attempts < MAX_WINDOW_CHECK_ATTEMPTS) {
     try {
+      // Les requêtes séquentielles sont nécessaires ici pour le polling du statut de la fenêtre
       const check = await runPs("Check");
       if (check && check.includes("Found")) {
         isWindowFound = true;
         break;
       }
     } catch (e) { /* ignore */ }
-    await new Promise((r) => setTimeout(r, WINDOW_CHECK_POLLING_MS));
+    await setTimeoutAsync(WINDOW_CHECK_POLLING_MS);
     attempts++;
   }
 
   if (!isWindowFound) throw new Error("Riot Client window not detected.");
   devLog("Window found. Performing Login...");
 
-  clipboard.writeText(username);
+  void clipboard.writeText(username);
   await runPs("PasteTab");
   clipboard.clear();
 
-  await new Promise((r) => setTimeout(r, LOGIN_ACTION_DELAY_MS));
+  await setTimeoutAsync(LOGIN_ACTION_DELAY_MS);
 
-  clipboard.writeText(password);
+  void clipboard.writeText(password);
   await runPs("PasteEnter");
   clipboard.clear();
 }
@@ -958,7 +972,7 @@ async function launchGame(gameId) {
   }
 
   // Wait 10 seconds before launching the game (let the client fully connect)
-  await new Promise((resolve) => setTimeout(resolve, GAME_LAUNCH_DELAY_MS));
+  await setTimeoutAsync(GAME_LAUNCH_DELAY_MS);
 
   let args = [];
   if (gameId === "valorant") {
