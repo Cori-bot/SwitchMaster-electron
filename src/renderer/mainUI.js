@@ -223,7 +223,7 @@ function setupUpdateModal() {
       try {
         btnUpdateDownload.textContent = "Téléchargement...";
         btnUpdateDownload.disabled = true;
-        await ipcRenderer.invoke("check-for-updates");
+        await ipcRenderer.invoke("download-update");
       } catch (error) {
         devError("Update download failed:", error);
         btnUpdateDownload.textContent = "Télécharger";
@@ -255,6 +255,23 @@ function showUpdateModal(updateInfo) {
   const latestVersionEl = document.getElementById("update-latest-version");
   const currentVersionEl = document.getElementById("update-current-version");
   const releaseNotesEl = document.getElementById("update-release-notes");
+  const btnUpdateDownload = document.getElementById("btn-update-download");
+
+  if (btnUpdateDownload) {
+    btnUpdateDownload.textContent = "Télécharger";
+    btnUpdateDownload.disabled = false;
+    btnUpdateDownload.onclick = async () => {
+      try {
+        btnUpdateDownload.textContent = "Téléchargement...";
+        btnUpdateDownload.disabled = true;
+        await ipcRenderer.invoke("download-update");
+      } catch (error) {
+        devError("Update download failed:", error);
+        btnUpdateDownload.textContent = "Télécharger";
+        btnUpdateDownload.disabled = false;
+      }
+    };
+  }
 
   if (latestVersionEl) latestVersionEl.textContent = `v${updateInfo.latestVersion}`;
   if (currentVersionEl) currentVersionEl.textContent = `v${updateInfo.currentVersion}`;

@@ -152,6 +152,12 @@ function setupIpcHandlers(mainWindow, launchGame, setAutoStart, getAutoStartStat
     return await handleUpdateCheck(mainWindow);
   });
 
+  ipcMain.handle("download-update", async () => {
+    const { autoUpdater } = require("electron-updater");
+    await autoUpdater.downloadUpdate();
+    return true;
+  });
+
   ipcMain.handle("install-update", () => {
     require("electron-updater").autoUpdater.quitAndInstall();
     return true;

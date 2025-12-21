@@ -1,4 +1,5 @@
 import { state } from './state.js';
+import { showNotification } from './ui.js';
 
 const ipcRenderer = window.ipc;
 
@@ -42,15 +43,18 @@ export function initSettings() {
     settingRiotPath.oninput = () => {
       clearTimeout(saveTimeout);
       saveTimeout = setTimeout(() => {
-        saveConfig({ riotPath: settingRiotPath.value.trim() });
+        saveConfig({ riotPath: settingRiotPath.value.trim() }, true);
       }, 500);
     };
   }
 }
 
-async function saveConfig(patch) {
+async function saveConfig(patch, notify = true) {
   state.appConfig = { ...state.appConfig, ...patch };
   await ipcRenderer.invoke("save-config", state.appConfig);
+  if (notify) {
+    showNotification("Paramètre enregistré avec succès", "success");
+  }
 }
 
 export async function browseRiotPath() {

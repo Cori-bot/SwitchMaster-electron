@@ -13,6 +13,11 @@ let activeAccountId = null;
 
 async function initApp() {
   try {
+    // Set App User Model ID for Windows notifications
+    if (process.platform === "win32") {
+      app.setAppUserModelId("com.switchmaster.app");
+    }
+    
     await app.whenReady();
     await ensureAppData();
     await loadConfig();

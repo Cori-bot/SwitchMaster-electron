@@ -1,9 +1,16 @@
 const { autoUpdater } = require("electron-updater");
 const log = require("electron-log");
-const { app } = require("electron");
+const { app, Notification } = require("electron");
+const path = require("path");
 
 autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = "info";
+autoUpdater.autoDownload = false; // Disable auto-download
+
+// Configuration des notifications système en français
+autoUpdater.fullChangelog = true;
+// On ne peut pas facilement traduire les notifications natives de electron-updater sans changer le code source de la lib,
+// donc on va utiliser nos propres notifications via Electron pour avoir un contrôle total sur la langue.
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 const DEV_UPDATE_NOTIF_DELAY_MS = 1500;
@@ -22,6 +29,20 @@ function setupUpdater(mainWindow) {
         releaseNotes: info.releaseNotes,
       });
     }
+
+    // Notification système personnalisée en français
+    const notification = new Notification({
+      title: "Mise à jour disponible",
+      body: `Une nouvelle version (${info.version}) de SwitchMaster est disponible !`,
+      icon: path.join(__dirname, "..", "..", "assets", "logo.png"),
+    });
+    notification.show();
+    notification.on("click", () => {
+      if (mainWindow) {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    });
   });
 
   autoUpdater.on("update-not-available", () => {
@@ -52,8 +73,22 @@ function setupUpdater(mainWindow) {
     }
   });
 
-  autoUpdater.on("update-downloaded", () => {
+  autoUpdater.on("update-downloaded", (info) => {
     if (mainWindow) mainWindow.webContents.send("update-downloaded");
+
+    // Notification système personnalisée en français
+    const notification = new Notification({
+      title: "Mise à jour prête",
+      body: `La version ${info.version} a été téléchargée et est prête à être installée.`,
+      icon: path.join(__dirname, "..", "..", "assets", "logo.png"),
+    });
+    notification.show();
+    notification.on("click", () => {
+      if (mainWindow) {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    });
   });
 }
 
@@ -71,7 +106,9 @@ async function handleUpdateCheck(mainWindow) {
     return { status: "dev" };
   } else {
     try {
-      return await autoUpdater.checkForUpdatesAndNotify();
+      // On utilise checkForUpdates() au lieu de checkForUpdatesAndNotify() 
+      // pour éviter les notifications natives en anglais de electron-updater
+      return await autoUpdater.checkForUpdates();
     } catch (err) {
       console.error("Initial update check failed:", err);
       throw err;
