@@ -19,6 +19,14 @@ async function initApp() {
     
     mainWindow = createWindow(isDev);
     
+    // Check if we should start minimized
+    const isMinimized = process.argv.includes("--minimized");
+    if (!isMinimized) {
+      mainWindow.once("ready-to-show", () => {
+        mainWindow.show();
+      });
+    }
+
     const switchAccountTrigger = async (id) => {
       activeAccountId = id;
       await updateTrayMenu(launchGame, switchAccountTrigger);

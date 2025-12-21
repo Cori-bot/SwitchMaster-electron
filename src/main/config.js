@@ -19,6 +19,7 @@ let appConfig = {
   minimizeToTray: true,
   showQuitModal: true,
   autoStart: false,
+  startMinimized: false,
   lastAccountId: null,
   security: {
     enabled: false,

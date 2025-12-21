@@ -7,6 +7,7 @@ export function initSettings() {
   const settingShowQuitModal = document.getElementById("setting-show-quit-modal");
   const settingMinimizeToTray = document.getElementById("setting-minimize-to-tray");
   const settingAutoStart = document.getElementById("setting-auto-start");
+  const settingStartMinimized = document.getElementById("setting-start-minimized");
   const settingSecurityEnable = document.getElementById("setting-security-enable");
   const securityConfigArea = document.getElementById("security-config-area");
 
@@ -14,6 +15,7 @@ export function initSettings() {
   if (settingShowQuitModal) settingShowQuitModal.checked = state.appConfig.showQuitModal;
   if (settingMinimizeToTray) settingMinimizeToTray.checked = state.appConfig.minimizeToTray;
   if (settingAutoStart) settingAutoStart.checked = state.appConfig.autoStart;
+  if (settingStartMinimized) settingStartMinimized.checked = state.appConfig.startMinimized;
   
   if (settingSecurityEnable) {
     const isSecurityEnabled = state.appConfig.security && state.appConfig.security.enabled;
@@ -26,6 +28,13 @@ export function initSettings() {
   if (settingAutoStart) settingAutoStart.onchange = (e) => {
     saveConfig({ autoStart: e.target.checked });
     ipcRenderer.invoke("set-auto-start", e.target.checked);
+  };
+  if (settingStartMinimized) settingStartMinimized.onchange = async (e) => {
+    await saveConfig({ startMinimized: e.target.checked });
+    // Update auto-start if it's enabled to include the new argument
+    if (state.appConfig.autoStart) {
+      ipcRenderer.invoke("set-auto-start", true);
+    }
   };
 
   if (settingRiotPath) {

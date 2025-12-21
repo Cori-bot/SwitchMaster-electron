@@ -54,11 +54,25 @@ async function launchGame(gameId) {
 }
 
 function setAutoStart(enable) {
+  const config = getConfig();
   const settings = { openAtLogin: enable };
-  if (!app.isPackaged) {
-    settings.path = process.execPath;
-    settings.args = ["."];
+  
+  if (enable) {
+    const args = [];
+    if (!app.isPackaged) {
+      settings.path = process.execPath;
+      args.push(".");
+    }
+    
+    if (config.startMinimized) {
+      args.push("--minimized");
+    }
+    
+    if (args.length > 0) {
+      settings.args = args;
+    }
   }
+
   app.setLoginItemSettings(settings);
 }
 

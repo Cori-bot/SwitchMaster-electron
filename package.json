@@ -1,6 +1,6 @@
 {
   "name": "switchmaster",
-  "version": "2.4.3",
+  "version": "2.4.4",
   "description": "SwitchMaster : Multi-Account Switcher",
   "main": "index.js",
   "scripts": {

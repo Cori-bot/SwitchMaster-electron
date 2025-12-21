@@ -20,6 +20,7 @@ function createWindow(isDev) {
     },
     backgroundColor: "#121212",
     frame: true,
+    show: false,
     autoHideMenuBar: true,
     devTools: isDev,
     icon: path.join(__dirname, "..", "..", "assets", "logo.png"),
