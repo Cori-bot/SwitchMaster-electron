@@ -1,14 +1,12 @@
-const { app, ipcMain } = require("electron");
-const { exec } = require("child_process");
-const util = require("util");
+import { app, BrowserWindow } from "electron";
+import { exec, spawn } from "child_process";
+import util from "util";
 const execAsync = util.promisify(exec);
-const { spawn } = require("child_process");
-const path = require("path");
-const fs = require("fs-extra");
+import path from "path";
+import fs from "fs-extra";
+import { getConfig } from "./config";
 
-const { getConfig } = require("./config");
-
-async function monitorRiotProcess(mainWindow, onClosed) {
+export async function monitorRiotProcess(mainWindow: BrowserWindow | null, onClosed?: () => void) {
   setInterval(async () => {
     try {
       const { stdout } = await execAsync('tasklist /FI "IMAGENAME eq RiotClientServices.exe" /FO CSV');
@@ -16,16 +14,17 @@ async function monitorRiotProcess(mainWindow, onClosed) {
         if (onClosed) onClosed();
         if (mainWindow) mainWindow.webContents.send("riot-client-closed");
       }
-    } catch (err) {
+    } catch (err: unknown) {
       // Ignore errors (typically when tasklist fails or process not found)
       if (process.env.NODE_ENV === "development") {
-        console.debug("Monitor interval error:", err.message);
+        const message = err instanceof Error ? err.message : String(err);
+        console.debug("Monitor interval error:", message);
       }
     }
   }, 10000);
 }
 
-async function launchGame(gameId) {
+export async function launchGame(gameId: 'league' | 'valorant') {
   const config = getConfig();
   let clientPath = config.riotPath;
   
@@ -45,7 +44,7 @@ async function launchGame(gameId) {
   // Petit délai pour laisser le temps au client de se stabiliser après le login
   await new Promise(resolve => setTimeout(resolve, 3000));
 
-  let args = [];
+  let args: string[] = [];
   if (gameId === "valorant") {
     args = ["--launch-product=valorant", "--launch-patchline=live"];
   } else if (gameId === "league") {
@@ -55,12 +54,12 @@ async function launchGame(gameId) {
   spawn(clientPath, args, { detached: true, stdio: "ignore" }).unref();
 }
 
-function setAutoStart(enable) {
+export function setAutoStart(enable: boolean) {
   const config = getConfig();
-  const settings = { openAtLogin: enable };
+  const settings: Electron.Settings = { openAtLogin: enable };
   
   if (enable) {
-    const args = [];
+    const args: string[] = [];
     if (!app.isPackaged) {
       settings.path = process.execPath;
       args.push(".");
@@ -78,7 +77,7 @@ function setAutoStart(enable) {
   app.setLoginItemSettings(settings);
 }
 
-function getAutoStartStatus() {
+export function getAutoStartStatus() {
   const settings = app.getLoginItemSettings();
   return {
     enabled: settings.openAtLogin || false,
@@ -86,7 +85,7 @@ function getAutoStartStatus() {
   };
 }
 
-async function getStatus() {
+export async function getStatus(): Promise<{ status: string; accountId?: string; accountName?: string }> {
   const config = getConfig();
   try {
     const { stdout } = await execAsync('tasklist /FI "IMAGENAME eq RiotClientServices.exe" /FO CSV');
@@ -95,16 +94,8 @@ async function getStatus() {
     if (isRunning && config.lastAccountId) {
       return { status: "Active", accountId: config.lastAccountId };
     }
-    return { status: "Ready" };
-  } catch (e) {
-    return { status: "Ready" };
+    return { status: "Prêt" };
+  } catch (error: unknown) {
+    return { status: "Prêt" };
   }
 }
-
-module.exports = {
-  monitorRiotProcess,
-  launchGame,
-  setAutoStart,
-  getAutoStartStatus,
-  getStatus,
-};

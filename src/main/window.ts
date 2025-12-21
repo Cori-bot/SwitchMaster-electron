@@ -1,12 +1,19 @@
-const { BrowserWindow, Tray, Menu, app, shell } = require("electron");
-const path = require("path");
-const { getConfig, saveConfig } = require("./config");
-const { loadAccountsMeta } = require("./accounts");
+import { BrowserWindow, Tray, Menu, app, shell } from "electron";
+import path from "path";
 
-let mainWindow;
-let tray = null;
+app.commandLine.appendSwitch("disable-gpu-cache");
+app.commandLine.appendSwitch("disable-gpu-shader-disk-cache");
+app.commandLine.appendSwitch("disable-http-cache");
+app.commandLine.appendSwitch("lang", "fr-FR");
+// app.commandLine.appendSwitch("remote-debugging-port", "9222");
 
-function createWindow(isDev) {
+import { getConfig } from "./config";
+import { loadAccountsMeta } from "./accounts";
+
+let mainWindow: BrowserWindow;
+let tray: Tray | null = null;
+
+export function createWindow(isDev: boolean): BrowserWindow {
   mainWindow = new BrowserWindow({
     width: 1000,
     height: 700,
@@ -15,18 +22,20 @@ function createWindow(isDev) {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      enableRemoteModule: false,
-      preload: path.join(__dirname, "..", "..", "preload.js"),
+      preload: path.join(__dirname, "preload.js"),
     },
     backgroundColor: "#121212",
     frame: true,
-    show: false,
+    show: isDev, // Show immediately in dev to debug
     autoHideMenuBar: true,
-    devTools: isDev,
-    icon: path.join(__dirname, "..", "..", "assets", "logo.png"),
+    icon: path.join(__dirname, "..", "assets", "logo.png"),
   });
 
-  mainWindow.loadFile("index.html");
+  if (isDev) {
+    mainWindow.loadURL("http://localhost:3000");
+  } else {
+    mainWindow.loadFile(path.join(__dirname, "../../dist/index.html"));
+  }
 
   mainWindow.webContents.on("will-navigate", (event, url) => {
     if (url !== mainWindow.webContents.getURL()) {
@@ -41,7 +50,7 @@ function createWindow(isDev) {
   });
 
   mainWindow.on("close", (event) => {
-    if (app.isQuitting) return;
+    if ((app as any).isQuitting) return;
     const config = getConfig();
     if (config.showQuitModal) {
       event.preventDefault();
@@ -55,8 +64,11 @@ function createWindow(isDev) {
   return mainWindow;
 }
 
-async function updateTrayMenu(launchGame, switchAccountTrigger) {
-  const iconPath = path.join(__dirname, "..", "..", "assets", "logo.png");
+export async function updateTrayMenu(
+  launchGame: (gameId: 'league' | 'valorant') => Promise<void>,
+  switchAccountTrigger: (id: string) => Promise<void>
+) {
+  const iconPath = path.join(__dirname, "..", "assets", "logo.png");
   if (!tray) {
     tray = new Tray(iconPath);
     tray.setToolTip("SwitchMaster");
@@ -71,7 +83,7 @@ async function updateTrayMenu(launchGame, switchAccountTrigger) {
   }
 
   const config = getConfig();
-  const menuItems = [
+  const menuItems: Electron.MenuItemConstructorOptions[] = [
     { label: "Afficher SwitchMaster", click: () => mainWindow.show() },
     { type: "separator" },
     { label: "Lancer League of Legends", click: () => launchGame("league") },
@@ -97,7 +109,7 @@ async function updateTrayMenu(launchGame, switchAccountTrigger) {
     {
       label: "Quitter",
       click: () => {
-        app.isQuitting = true;
+        (app as any).isQuitting = true;
         app.quit();
       },
     },
@@ -106,12 +118,6 @@ async function updateTrayMenu(launchGame, switchAccountTrigger) {
   tray.setContextMenu(Menu.buildFromTemplate(menuItems));
 }
 
-function getMainWindow() {
+export function getMainWindow() {
   return mainWindow;
 }
-
-module.exports = {
-  createWindow,
-  updateTrayMenu,
-  getMainWindow,
-};

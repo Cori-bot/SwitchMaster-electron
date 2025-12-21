@@ -1,8 +1,8 @@
-const { spawn, exec } = require("child_process");
-const util = require("util");
-const path = require("path");
-const fs = require("fs-extra");
-const { clipboard, app } = require("electron");
+import { spawn, exec } from "child_process";
+import util from "util";
+import path from "path";
+import fs from "fs-extra";
+import { clipboard, app } from "electron";
 const execAsync = util.promisify(exec);
 const setTimeoutAsync = util.promisify(setTimeout);
 
@@ -12,11 +12,11 @@ const WINDOW_CHECK_POLLING_MS = 1000;
 const LOGIN_ACTION_DELAY_MS = 500;
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
-const SCRIPTS_PATH = isDev ?
+export const SCRIPTS_PATH = isDev ?
   path.join(__dirname, "..", "scripts") :
   path.join(process.resourcesPath, "scripts");
 
-async function killRiotProcesses() {
+export async function killRiotProcesses() {
   try {
     try {
       await execAsync('taskkill /F /IM "RiotClientServices.exe" /IM "LeagueClient.exe" /IM "VALORANT.exe"');
@@ -29,7 +29,7 @@ async function killRiotProcesses() {
   }
 }
 
-async function launchRiotClient(clientPath) {
+export async function launchRiotClient(clientPath: string) {
   if (await fs.pathExists(clientPath)) {
     const child = spawn(clientPath, [], { detached: true, stdio: "ignore" });
     child.unref();
@@ -38,10 +38,10 @@ async function launchRiotClient(clientPath) {
   }
 }
 
-async function performAutomation(username, password) {
+export async function performAutomation(username: string, password: string) {
   const psScript = path.join(SCRIPTS_PATH, "automate_login.ps1");
 
-  const runPs = (action) => {
+  const runPs = (action: string): Promise<string> => {
     return new Promise((resolve, reject) => {
       const ps = spawn("powershell.exe", [
         "-ExecutionPolicy", "Bypass", "-File", psScript, "-Action", action,
@@ -58,7 +58,7 @@ async function performAutomation(username, password) {
     });
   };
 
-  async function waitForWindowRecursive(currentAttempt = 0) {
+  async function waitForWindowRecursive(currentAttempt: number = 0): Promise<boolean> {
     if (currentAttempt >= MAX_WINDOW_CHECK_ATTEMPTS) {
       return false;
     }
@@ -91,14 +91,19 @@ async function performAutomation(username, password) {
   clipboard.clear();
 }
 
-async function autoDetectPaths() {
+interface DetectionResult {
+  DisplayName?: string;
+  InstallLocation?: string;
+}
+
+export async function autoDetectPaths() {
   try {
     const psScript = path.join(SCRIPTS_PATH, "detect_games.ps1");
     const { stdout } = await execAsync(
       `powershell.exe -ExecutionPolicy Bypass -File "${psScript}"`,
     );
 
-    const results = JSON.parse(stdout);
+    const results = JSON.parse(stdout) as DetectionResult[];
     const riotEntry = results.find(
       (item) => item.DisplayName && item.DisplayName.includes("Riot Client"),
     );
@@ -115,11 +120,3 @@ async function autoDetectPaths() {
     return null;
   }
 }
-
-module.exports = {
-  killRiotProcesses,
-  launchRiotClient,
-  performAutomation,
-  autoDetectPaths,
-  SCRIPTS_PATH,
-};

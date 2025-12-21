@@ -1,20 +1,25 @@
-const { app, safeStorage } = require("electron");
-const path = require("path");
-const fs = require("fs-extra");
+import { app, safeStorage } from "electron";
+import path from "path";
+import fs from "fs-extra";
+import { Config } from "../shared/types";
 
-const APP_DATA_PATH = path.join(app.getPath("userData"), "SwitchMaster-v2");
-const CONFIG_FILE = path.join(APP_DATA_PATH, "config.json");
-const ACCOUNTS_FILE = path.join(APP_DATA_PATH, "accounts.json");
+let APP_DATA_PATH: string;
+let CONFIG_FILE: string;
+let ACCOUNTS_FILE: string;
 
-const DEFAULT_RIOT_DATA_PATH = path.join(
-  process.env.LOCALAPPDATA,
-  "Riot Games",
-  "Riot Client",
-  "Data",
-);
+export function getPaths() {
+  if (!APP_DATA_PATH) {
+    APP_DATA_PATH = app.getPath("userData");
+    CONFIG_FILE = path.join(APP_DATA_PATH, "config.json");
+    ACCOUNTS_FILE = path.join(APP_DATA_PATH, "accounts.json");
+  }
+  return { APP_DATA_PATH, CONFIG_FILE, ACCOUNTS_FILE };
+}
 
-let appConfig = {
-  riotPath: DEFAULT_RIOT_DATA_PATH,
+export const DEFAULT_RIOT_CLIENT_PATH = "C:\\Riot Games\\Riot Client\\RiotClientServices.exe";
+
+let appConfig: Config = {
+  riotPath: DEFAULT_RIOT_CLIENT_PATH,
   theme: "dark",
   minimizeToTray: true,
   showQuitModal: true,
@@ -27,11 +32,13 @@ let appConfig = {
   },
 };
 
-async function ensureAppData() {
+export async function ensureAppData(): Promise<void> {
+  const { APP_DATA_PATH } = getPaths();
   await fs.ensureDir(APP_DATA_PATH);
 }
 
-async function loadConfig() {
+export async function loadConfig(): Promise<Config> {
+  const { CONFIG_FILE } = getPaths();
   try {
     if (await fs.pathExists(CONFIG_FILE)) {
       const savedConfig = await fs.readJson(CONFIG_FILE);
@@ -44,7 +51,8 @@ async function loadConfig() {
   }
 }
 
-async function saveConfig(newConfig) {
+export async function saveConfig(newConfig: Partial<Config>): Promise<Config> {
+  const { CONFIG_FILE } = getPaths();
   appConfig = { ...appConfig, ...newConfig };
   try {
     await fs.outputJson(CONFIG_FILE, appConfig, { spaces: 2 });
@@ -55,12 +63,12 @@ async function saveConfig(newConfig) {
   }
 }
 
-function getConfig() {
+export function getConfig(): Config {
   return appConfig;
 }
 
 // Secure Encryption/Decryption
-function encryptData(data) {
+export function encryptData(data: string): string {
   if (safeStorage && safeStorage.isEncryptionAvailable()) {
     return safeStorage.encryptString(data).toString("base64");
   } else {
@@ -68,7 +76,7 @@ function encryptData(data) {
   }
 }
 
-function decryptData(encryptedData) {
+export function decryptData(encryptedData: string): string | null {
   if (safeStorage && safeStorage.isEncryptionAvailable()) {
     try {
       return safeStorage.decryptString(Buffer.from(encryptedData, "base64"));
@@ -80,16 +88,3 @@ function decryptData(encryptedData) {
     return Buffer.from(encryptedData, "base64").toString("utf-8");
   }
 }
-
-module.exports = {
-  APP_DATA_PATH,
-  CONFIG_FILE,
-  ACCOUNTS_FILE,
-  DEFAULT_RIOT_DATA_PATH,
-  ensureAppData,
-  loadConfig,
-  saveConfig,
-  getConfig,
-  encryptData,
-  decryptData,
-};

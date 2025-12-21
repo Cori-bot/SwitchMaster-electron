@@ -1,0 +1,224 @@
+import React from 'react';
+import { FolderOpen, Shield, Bell, Monitor, Info, RefreshCw } from 'lucide-react';
+import { Config } from '../hooks/useConfig';
+
+interface SettingsProps {
+  config: Config | null;
+  onUpdate: (newConfig: Partial<Config>) => void;
+  onSelectRiotPath: () => void;
+  onOpenPinModal: () => void;
+  onCheckUpdates: () => void;
+}
+
+const Settings: React.FC<SettingsProps> = ({
+  config,
+  onUpdate,
+  onSelectRiotPath,
+  onOpenPinModal,
+  onCheckUpdates,
+}) => {
+  if (!config) return null;
+
+  const handleChange = <K extends keyof Config>(key: K, value: Config[K]) => {
+    onUpdate({ [key]: value });
+  };
+
+  const handleAutoStartChange = async (enabled: boolean) => {
+    await onUpdate({ autoStart: enabled });
+    window.ipc.invoke('set-auto-start', enabled);
+  };
+
+  const handleStartMinimizedChange = async (enabled: boolean) => {
+    await onUpdate({ startMinimized: enabled });
+    if (config.autoStart) {
+      window.ipc.invoke('set-auto-start', true);
+    }
+  };
+
+  interface SettingItemProps {
+    icon: React.ElementType;
+    title: string;
+    description?: string;
+    children: React.ReactNode;
+  }
+
+  const SettingItem: React.FC<SettingItemProps> = ({ icon: Icon, title, description, children }) => (
+    <div className="bg-white/5 border border-white/5 rounded-2xl p-6 mb-4">
+      <div className="flex items-start gap-4 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-blue-600/10 flex items-center justify-center text-blue-500 shrink-0">
+          <Icon size={20} />
+        </div>
+        <div className="flex-1">
+          <h3 className="text-lg font-bold text-white">{title}</h3>
+          {description && <p className="text-sm text-gray-500 mt-1">{description}</p>}
+        </div>
+      </div>
+      <div className="ml-14">
+        {children}
+      </div>
+    </div>
+  );
+
+  interface CheckboxProps {
+    id: string;
+    label: string;
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+    subLabel?: string;
+  }
+
+  const Checkbox: React.FC<CheckboxProps> = ({ id, label, checked, onChange, subLabel }) => (
+    <label className="flex items-start gap-3 cursor-pointer group py-2" htmlFor={id}>
+      <div className="relative flex items-center mt-1">
+        <input
+          type="checkbox"
+          id={id}
+          className="peer sr-only"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+        />
+        <div className="w-5 h-5 border-2 border-gray-600 rounded-md transition-all duration-200 peer-checked:bg-blue-600 peer-checked:border-blue-600 group-hover:border-blue-500" />
+        <svg
+          className="absolute w-3.5 h-3.5 text-white opacity-0 transition-opacity duration-200 peer-checked:opacity-100 left-[3px]"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </div>
+      <div>
+        <div className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">
+          {label}
+        </div>
+        {subLabel && <div className="text-[11px] text-gray-500 mt-0.5">{subLabel}</div>}
+      </div>
+    </label>
+  );
+
+  return (
+    <div className="max-w-3xl mx-auto pb-12">
+      <header className="mb-8">
+        <h1 className="text-3xl font-black text-white mb-2 tracking-tight">Paramètres</h1>
+        <p className="text-gray-400">Personnalisez votre expérience SwitchMaster</p>
+      </header>
+
+      <SettingItem 
+        icon={Monitor} 
+        title="Application" 
+        description="Gérez le comportement général de l'application."
+      >
+        <div className="space-y-2">
+          <Checkbox
+            id="showQuitModal"
+            label="Confirmation de fermeture"
+            subLabel="Affiche une fenêtre de confirmation avant de quitter l'application."
+            checked={config.showQuitModal}
+            onChange={(val) => handleChange('showQuitModal', val)}
+          />
+          <Checkbox
+            id="minimizeToTray"
+            label="Réduire dans la zone de notification"
+            subLabel="L'application continue de tourner en arrière-plan une fois fermée."
+            checked={config.minimizeToTray}
+            onChange={(val) => handleChange('minimizeToTray', val)}
+          />
+          <Checkbox
+            id="autoStart"
+            label="Lancer au démarrage"
+            subLabel="Démarre automatiquement SwitchMaster à l'ouverture de Windows."
+            checked={config.autoStart}
+            onChange={handleAutoStartChange}
+          />
+          <Checkbox
+            id="startMinimized"
+            label="Démarrer réduit"
+            subLabel="Lance l'application directement dans la barre système au démarrage."
+            checked={config.startMinimized}
+            onChange={handleStartMinimizedChange}
+          />
+        </div>
+      </SettingItem>
+
+      <SettingItem 
+        icon={FolderOpen} 
+        title="Riot Client" 
+        description="Emplacement de l'exécutable Riot Client Services."
+      >
+        <div className="flex gap-3">
+          <div className="flex-1 relative group">
+            <input
+              type="text"
+              value={config.riotPath || ''}
+              onChange={(e) => handleChange('riotPath', e.target.value)}
+              placeholder="C:\Riot Games\Riot Client\RiotClientServices.exe"
+              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-300 focus:outline-none focus:border-blue-500/50 transition-all font-mono"
+            />
+          </div>
+          <button
+            onClick={onSelectRiotPath}
+            className="px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white transition-all duration-200 flex items-center gap-2 text-sm font-medium"
+          >
+            <FolderOpen size={18} />
+            Parcourir
+          </button>
+        </div>
+      </SettingItem>
+
+      <SettingItem 
+        icon={Shield} 
+        title="Sécurité" 
+        description="Protégez vos comptes avec un code PIN au démarrage."
+      >
+        <Checkbox
+          id="securityEnabled"
+          label="Activer la protection par PIN"
+          subLabel="Demande un code de sécurité à chaque ouverture de l'application."
+          checked={!!config.security?.enabled}
+          onChange={(val) => handleChange('security', { ...config.security, enabled: val })}
+        />
+        {config.security?.enabled && (
+          <div className="mt-4 pt-4 border-t border-white/5">
+            <button
+              onClick={onOpenPinModal}
+              className="text-sm font-bold text-blue-500 hover:text-blue-400 transition-colors flex items-center gap-2"
+            >
+              <Shield size={16} />
+              Définir / Modifier le code PIN
+            </button>
+          </div>
+        )}
+      </SettingItem>
+
+      <SettingItem 
+        icon={Info} 
+        title="À propos" 
+        description="Informations sur la version et mises à jour."
+      >
+        <div className="flex items-center justify-between bg-black/20 rounded-xl p-4 border border-white/5">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center">
+              <img src="src/assets/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
+            </div>
+            <div>
+              <div className="text-white font-bold">SwitchMaster v2.4.5</div>
+              <div className="text-xs text-gray-500 font-medium">Développé par le Coridor</div>
+            </div>
+          </div>
+          <button
+            onClick={onCheckUpdates}
+            className="flex items-center gap-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200"
+          >
+            <RefreshCw size={16} />
+            Mettre à jour
+          </button>
+        </div>
+      </SettingItem>
+    </div>
+  );
+};
+
+export default Settings;

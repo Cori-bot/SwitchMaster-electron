@@ -1,12 +1,12 @@
 {
   "name": "switchmaster",
-  "version": "2.4.4",
+  "version": "2.4.5",
   "description": "SwitchMaster : Multi-Account Switcher",
-  "main": "index.js",
+  "main": "src/main/main.ts",
   "scripts": {
-    "start": "electron .",
-    "release": "electron-builder --publish=always",
-    "build": "electron-builder",
+    "dev": "concurrently \"vite\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron -r tsx src/main/main.ts\"",
+    "build": "vite build && electron-builder",
+    "release": "vite build && electron-builder --publish=always",
     "up-dep": "pnpm up --latest",
     "test": "vitest run"
   },
@@ -18,7 +18,7 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "assets/logo.ico"
+      "icon": "src/assets/logo.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -66,19 +66,39 @@
   "license": "ISC",
   "dependencies": {
     "chokidar": "5.0.0",
+    "clsx": "^2.1.1",
     "dompurify": "^3.3.1",
     "electron-log": "5.4.3",
     "electron-updater": "6.6.2",
     "fs-extra": "11.3.3",
+    "lucide-react": "^0.562.0",
     "marked": "^17.0.1",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "tailwind-merge": "^3.4.0",
     "yaml": "2.8.2"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^25.0.3",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.2",
     "@vitest/ui": "^4.0.16",
+    "autoprefixer": "^10.4.23",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "electron": "39.2.7",
     "electron-builder": "26.0.12",
     "jsdom": "^27.3.0",
+    "postcss": "^8.5.6",
     "prettier": "^3.7.4",
-    "vitest": "^4.0.16"
+    "tailwindcss": "^4.1.18",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.0",
+    "vitest": "^4.0.16",
+    "wait-on": "^9.0.3"
   }
 }
