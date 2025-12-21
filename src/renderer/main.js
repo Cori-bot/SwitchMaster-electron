@@ -1,4 +1,4 @@
-import { state, constants } from './state.js';
+import { state } from './state.js';
 import { devLog, devError, showNotification } from './ui.js';
 import { renderAccounts, initAccountModal, validateAccountData } from './accountsUI.js';
 import { initSettings, browseRiotPath } from './settingsUI.js';
@@ -137,7 +137,7 @@ function initGlobalEvents() {
 }
 
 async function handleSaveAccount() {
-  const data = {
+  const accountData = {
     name: document.getElementById("input-name").value.trim(),
     username: document.getElementById("input-username").value.trim(),
     password: document.getElementById("input-password").value.trim(),
@@ -146,14 +146,14 @@ async function handleSaveAccount() {
     gameType: document.querySelector('input[name="game-type"]:checked').value,
   };
   
-  if (!validateAccountData(data)) return;
+  if (!validateAccountData(accountData)) return;
 
   try {
     const id = document.getElementById("input-edit-id").value;
     if (id) {
-      await ipcRenderer.invoke("update-account", { id, ...data });
+      await ipcRenderer.invoke("update-account", { id, ...accountData });
     } else {
-      await ipcRenderer.invoke("add-account", data);
+      await ipcRenderer.invoke("add-account", accountData);
     }
     
     state.accounts = await ipcRenderer.invoke("get-accounts");

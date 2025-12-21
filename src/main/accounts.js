@@ -23,7 +23,8 @@ async function saveAccountsMeta(accounts) {
   }
 }
 
-async function addAccount({ name, username, password, riotId, gameType, cardImage }) {
+async function addAccount(accountData) {
+  const { name, username, password, riotId, gameType, cardImage } = accountData;
   const id = crypto.randomUUID();
   const encryptedUsername = encryptData(username);
   const encryptedPassword = encryptData(password);
@@ -55,7 +56,8 @@ async function addAccount({ name, username, password, riotId, gameType, cardImag
   return newAccount;
 }
 
-async function updateAccount({ id, name, username, password, riotId, gameType, cardImage }) {
+async function updateAccount(accountData) {
+  const { id, name, username, password, riotId, gameType, cardImage } = accountData;
   const accounts = await loadAccountsMeta();
   const index = accounts.findIndex((a) => a.id === id);
 

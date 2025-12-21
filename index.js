@@ -37,7 +37,12 @@ async function initApp() {
       await updateTrayMenu(launchGame, switchAccountTrigger);
     };
 
-    setupIpcHandlers(mainWindow, launchGame, setAutoStart, getAutoStartStatus, getStatus);
+    setupIpcHandlers(mainWindow, {
+      launchGame,
+      setAutoStart,
+      getAutoStartStatus,
+      getStatus
+    });
     setupUpdater(mainWindow);
     await updateTrayMenu(launchGame, switchAccountTrigger);
 

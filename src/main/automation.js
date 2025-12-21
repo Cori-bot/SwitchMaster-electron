@@ -18,20 +18,18 @@ const SCRIPTS_PATH = isDev ?
 
 async function killRiotProcesses() {
   try {
-    console.log("Killing existing Riot processes...");
     try {
       await execAsync('taskkill /F /IM "RiotClientServices.exe" /IM "LeagueClient.exe" /IM "VALORANT.exe"');
     } catch (e) {
-      console.log("Taskkill failed (processes might not be running):", e.message);
+      // Taskkill failed (processes might not be running), ignore
     }
     await setTimeoutAsync(PROCESS_TERMINATION_DELAY);
   } catch (e) {
-    console.log("Processes cleanup err:", e.message);
+    // Cleanup error, ignore
   }
 }
 
 async function launchRiotClient(clientPath) {
-  console.log("Launching Riot Client from:", clientPath);
   if (await fs.pathExists(clientPath)) {
     const child = spawn(clientPath, [], { detached: true, stdio: "ignore" });
     child.unref();
@@ -70,19 +68,17 @@ async function performAutomation(username, password) {
         return true;
       }
     } catch (e) {
-      console.warn("Window check attempt failed:", e.message);
+      // Window check attempt failed, ignore and retry
     }
     await setTimeoutAsync(WINDOW_CHECK_POLLING_MS);
     return waitForWindowRecursive(currentAttempt + 1);
   }
 
-  console.log("Waiting for window...");
   const isWindowFound = await waitForWindowRecursive();
 
   if (!isWindowFound) {
     throw new Error("Riot Client window not detected.");
   }
-  console.log("Window found. Performing Login...");
 
   clipboard.writeText(username);
   await runPs("PasteTab");

@@ -45,12 +45,12 @@ async function loadAccountStats(accountId, callback) {
 function renderEmptyState(onOpenModal) {
   const container = document.createElement("div");
   container.className = "empty-state-container";
-  container.innerHTML = `
+  setSafeHTML(container, `
     <button class="btn-empty-state">
       <div class="empty-icon">+</div>
       <div class="empty-text">Ajouter un premier compte</div>
     </button>
-  `;
+  `);
   container.querySelector('button').onclick = () => onOpenModal("add");
   accountsList.appendChild(container);
 }
@@ -70,20 +70,22 @@ function createAccountCard(acc, onSwitchAccount, onSettingsAction) {
   const content = document.createElement("div");
   content.className = "card-content";
   
+  const riotIdHtml = acc.riotId ? `<div class="account-riot-id">${escapeHtml(acc.riotId)}</div>` : '';
+  
   // Top Section
   const top = document.createElement("div");
   top.className = "card-top-section";
-  top.innerHTML = `
+  setSafeHTML(top, `
     <div class="card-info">
       <div class="account-name">${escapeHtml(acc.name)}</div>
-      ${acc.riotId ? `<div class="account-riot-id">${escapeHtml(acc.riotId)}</div>` : ''}
+      ${riotIdHtml}
     </div>
     <div class="card-right-side">
       <div class="card-display-image">
         <img src="assets/${acc.gameType === "league" ? "league" : "valorant"}.png" alt="${acc.gameType}">
       </div>
     </div>
-  `;
+  `);
   content.appendChild(top);
 
   // Rank Section
@@ -95,7 +97,7 @@ function createAccountCard(acc, onSwitchAccount, onSettingsAction) {
   } else if (acc.riotId) {
     const rankWrapper = document.createElement("div");
     rankWrapper.className = "rank-wrapper";
-    rankWrapper.innerHTML = `<div class="rank-section"><div class="rank-loading">Chargement des stats...</div></div>`;
+    setSafeHTML(rankWrapper, `<div class="rank-section"><div class="rank-loading">Chargement des statistiques</div></div>`);
     content.appendChild(rankWrapper);
   }
 
@@ -111,7 +113,7 @@ function createAccountCard(acc, onSwitchAccount, onSettingsAction) {
   
   const settingsWrapper = document.createElement("div");
   settingsWrapper.className = "settings-wrapper";
-  settingsWrapper.innerHTML = `
+  setSafeHTML(settingsWrapper, `
     <button class="btn-settings" title="Paramètres du compte">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"></path>
@@ -122,7 +124,7 @@ function createAccountCard(acc, onSwitchAccount, onSettingsAction) {
       <div class="menu-item" data-action="edit">Modifier</div>
       <div class="menu-item delete" data-action="delete">Supprimer</div>
     </div>
-  `;
+  `);
   
   const btnSettings = settingsWrapper.querySelector('.btn-settings');
   const menu = settingsWrapper.querySelector('.settings-menu');
@@ -258,9 +260,9 @@ export function initAccountModal() {
     passwordToggle.onclick = () => {
       const isPassword = inputPassword.type === "password";
       inputPassword.type = isPassword ? "text" : "password";
-      passwordToggle.innerHTML = isPassword ? 
-        '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>' :
-        '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+      setSafeHTML(passwordToggle, isPassword ? 
+        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>' :
+        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>');
     };
   }
 }

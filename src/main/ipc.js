@@ -18,8 +18,16 @@ const { handleUpdateCheck, simulateUpdateCheck } = require("./updater");
 const { fetchAccountStats } = require("../../statsService");
 const path = require("path");
 
-function setupIpcHandlers(mainWindow, launchGame, setAutoStart, getAutoStartStatus, getStatus) {
-  // Accounts
+function setupIpcHandlers(mainWindow, context) {
+  registerAccountHandlers();
+  registerConfigHandlers();
+  registerRiotHandlers(context.launchGame);
+  registerSecurityHandlers();
+  registerMiscHandlers(mainWindow, context);
+  registerUpdateHandlers(mainWindow);
+}
+
+function registerAccountHandlers() {
   ipcMain.handle("get-accounts", async () => await loadAccountsMeta());
   ipcMain.handle("get-account-credentials", async (e, id) => await getAccountCredentials(id));
   ipcMain.handle("add-account", async (e, data) => await addAccount(data));
@@ -28,21 +36,33 @@ function setupIpcHandlers(mainWindow, launchGame, setAutoStart, getAutoStartStat
   
   ipcMain.handle("reorder-accounts", async (e, ids) => {
     const accounts = await loadAccountsMeta();
-    const map = new Map(accounts.map(a => [a.id, a]));
-    const reordered = ids.map(id => map.get(id)).filter(Boolean);
+    const accountMap = new Map(accounts.map(a => [a.id, a]));
+    const reordered = ids.map(id => accountMap.get(id)).filter(Boolean);
     accounts.forEach(a => { if (!ids.includes(a.id)) reordered.push(a); });
     await saveAccountsMeta(reordered);
     return true;
   });
 
-  // Config
+  ipcMain.handle("fetch-account-stats", async (e, id) => {
+    const accounts = await loadAccountsMeta();
+    const acc = accounts.find(a => a.id === id);
+    if (!acc || !acc.riotId) throw new Error("Invalid account or missing Riot ID");
+    const stats = await fetchAccountStats(acc.riotId, acc.gameType);
+    acc.stats = stats;
+    await saveAccountsMeta(accounts);
+    return stats;
+  });
+}
+
+function registerConfigHandlers() {
   ipcMain.handle("get-config", () => getConfig());
   ipcMain.handle("save-config", async (e, config) => {
     await saveConfig(config);
     return true;
   });
+}
 
-  // Riot Path
+function registerRiotHandlers(launchGame) {
   ipcMain.handle("select-riot-path", async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       title: "Sélectionner l'exécutable Riot Client",
@@ -54,7 +74,6 @@ function setupIpcHandlers(mainWindow, launchGame, setAutoStart, getAutoStartStat
 
   ipcMain.handle("auto-detect-paths", async () => await autoDetectPaths());
 
-  // Switch Account
   ipcMain.handle("switch-account", async (e, id) => {
     const credentials = await getAccountCredentials(id);
     await killRiotProcesses();
@@ -69,13 +88,13 @@ function setupIpcHandlers(mainWindow, launchGame, setAutoStart, getAutoStartStat
     return { success: true, id };
   });
 
-  // Games
   ipcMain.handle("launch-game", async (e, gameId) => {
     await launchGame(gameId);
     return true;
   });
+}
 
-  // Security
+function registerSecurityHandlers() {
   ipcMain.handle("verify-pin", async (e, pin) => {
     const config = getConfig();
     if (!config.security.enabled) return true;
@@ -95,8 +114,9 @@ function setupIpcHandlers(mainWindow, launchGame, setAutoStart, getAutoStartStat
   });
 
   ipcMain.handle("check-security-enabled", () => getConfig().security.enabled);
+}
 
-  // Misc
+function registerMiscHandlers(mainWindow, context) {
   ipcMain.handle("select-image", async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
       properties: ["openFile"],
@@ -113,17 +133,7 @@ function setupIpcHandlers(mainWindow, launchGame, setAutoStart, getAutoStartStat
   });
 
   ipcMain.handle("get-status", async () => {
-    return await getStatus(); 
-  });
-
-  ipcMain.handle("fetch-account-stats", async (e, id) => {
-    const accounts = await loadAccountsMeta();
-    const acc = accounts.find(a => a.id === id);
-    if (!acc || !acc.riotId) throw new Error("Invalid account or missing Riot ID");
-    const stats = await fetchAccountStats(acc.riotId, acc.gameType);
-    acc.stats = stats;
-    await saveAccountsMeta(accounts);
-    return stats;
+    return await context.getStatus(); 
   });
 
   ipcMain.handle("handle-quit-choice", async (e, { action, dontShowAgain }) => {
@@ -138,12 +148,14 @@ function setupIpcHandlers(mainWindow, launchGame, setAutoStart, getAutoStartStat
   });
 
   ipcMain.handle("set-auto-start", async (e, enable) => {
-    setAutoStart(enable);
+    context.setAutoStart(enable);
     return true;
   });
 
-  ipcMain.handle("get-auto-start-status", () => getAutoStartStatus());
+  ipcMain.handle("get-auto-start-status", () => context.getAutoStartStatus());
+}
 
+function registerUpdateHandlers(mainWindow) {
   ipcMain.handle("check-for-updates", async () => {
     if (process.env.NODE_ENV === "development" || !app.isPackaged) {
       await simulateUpdateCheck(mainWindow);

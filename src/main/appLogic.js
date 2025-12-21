@@ -17,7 +17,10 @@ async function monitorRiotProcess(mainWindow, onClosed) {
         if (mainWindow) mainWindow.webContents.send("riot-client-closed");
       }
     } catch (err) {
-      // Ignore errors
+      // Ignore errors (typically when tasklist fails or process not found)
+      if (process.env.NODE_ENV === "development") {
+        console.debug("Monitor interval error:", err.message);
+      }
     }
   }, 10000);
 }
@@ -49,7 +52,6 @@ async function launchGame(gameId) {
     args = ["--launch-product=league_of_legends", "--launch-patchline=live"];
   }
 
-  console.log(`Launching ${gameId} with: ${clientPath} ${args.join(" ")}`);
   spawn(clientPath, args, { detached: true, stdio: "ignore" }).unref();
 }
 

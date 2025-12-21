@@ -178,7 +178,7 @@ function setupUpdateModal() {
     } else if (updateInfo.status === "not-available") {
       import('./ui.js').then(({ showNotification }) => {
         showNotification("Votre version est à jour !", "success");
-      });
+      }).catch(err => devError("Failed to load ui module:", err));
       if (btnCheckUpdates) {
         btnCheckUpdates.disabled = false;
         btnCheckUpdates.textContent = "Vérifier les mises à jour";
@@ -186,7 +186,7 @@ function setupUpdateModal() {
     } else if (updateInfo.status === "error") {
       import('./ui.js').then(({ showNotification }) => {
         showNotification("Erreur lors de la vérification des mises à jour", "error");
-      });
+      }).catch(err => devError("Failed to load ui module:", err));
       if (btnCheckUpdates) {
         btnCheckUpdates.disabled = false;
         btnCheckUpdates.textContent = "Vérifier les mises à jour";
@@ -215,7 +215,7 @@ function setupUpdateModal() {
     }
     import('./ui.js').then(({ showNotification }) => {
       showNotification("Mise à jour téléchargée ! Cliquez pour installer.", "success");
-    });
+    }).catch(err => devError("Failed to load ui module:", err));
   });
 
   if (btnUpdateDownload) {
@@ -287,7 +287,7 @@ function showUpdateModal(updateInfo) {
     }
     import('./ui.js').then(({ setSafeHTML }) => {
       setSafeHTML(releaseNotesEl, htmlNotes);
-    });
+    }).catch(err => devError("Failed to load ui module:", err));
   }
 
   openModal("update-modal");

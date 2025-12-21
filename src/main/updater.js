@@ -94,7 +94,6 @@ function setupUpdater(mainWindow) {
 
 async function handleUpdateCheck(mainWindow) {
   if (isDev) {
-    console.log("Running in development mode - update checking disabled");
     setTimeout(() => {
       if (mainWindow) {
         mainWindow.webContents.send("update-status", {
