@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 export type { Config } from "../../shared/types";
 import { Config } from "../../shared/types";
+import { devError } from "../utils/logger";
 
 export const useConfig = () => {
   const [config, setConfig] = useState<Config | null>(null);
@@ -11,14 +12,14 @@ export const useConfig = () => {
       const data = await window.ipc.invoke("get-config");
       setConfig(data);
     } catch (err) {
-      console.error("Failed to fetch config:", err);
+      devError("Failed to fetch config:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchConfig();
+    void fetchConfig();
 
     const unsubscribe = window.ipc.on("config-updated", (_event, newConfig) => {
       setConfig((prev) =>
@@ -35,9 +36,8 @@ export const useConfig = () => {
     try {
       await window.ipc.invoke("save-config", newConfig);
     } catch (err) {
-      console.error("Failed to save config:", err);
       // Revert on failure
-      fetchConfig();
+      void fetchConfig();
       throw err;
     }
   };

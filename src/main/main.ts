@@ -13,11 +13,10 @@ import {
   getStatus,
 } from "./appLogic";
 
-import { devLog } from "./logger";
+import { devLog, devError } from "./logger";
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
-let activeAccountId: string | null = null;
 
 const STATS_REFRESH_INTERVAL_MS = 60000;
 const INITIAL_STATS_REFRESH_DELAY_MS = 5000;
@@ -65,8 +64,7 @@ async function initApp() {
       }
     }
 
-    const switchAccountTrigger = async (id: string) => {
-      activeAccountId = id;
+    const switchAccountTrigger = async (_id: string) => {
       await updateTrayMenu(launchGame, switchAccountTrigger);
     };
 
@@ -81,7 +79,7 @@ async function initApp() {
     await updateTrayMenu(launchGame, switchAccountTrigger);
 
     monitorRiotProcess(mainWindow, () => {
-      activeAccountId = null;
+      // Logic when process ends
     });
 
     // Stats refresh
@@ -96,10 +94,10 @@ async function initApp() {
 
     // Initial update check
     handleUpdateCheck(mainWindow).catch((err) =>
-      console.error("Update check failed:", err),
+      devError("Update check failed:", err),
     );
   } catch (err) {
-    console.error("App initialization failed:", err);
+    devError("App initialization failed:", err);
   }
 }
 
@@ -111,5 +109,6 @@ app.on("window-all-closed", () => {
 });
 
 initApp().catch((err) => {
-  console.error("Fatal error:", err);
+  devError("Fatal error:", err);
+  app.quit();
 });

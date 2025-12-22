@@ -1,5 +1,6 @@
 import React from "react";
 import { LayoutDashboard, Settings, Rocket } from "lucide-react";
+import { devError } from "../utils/logger";
 
 interface SidebarProps {
   activeView: string;
@@ -11,7 +12,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
     try {
       await window.ipc.invoke("launch-game", gameType);
     } catch (error) {
-      console.error("Failed to launch game:", error);
+      devError("Failed to launch game:", error);
     }
   };
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 export type { Account } from "../../shared/types";
 import { Account } from "../../shared/types";
+import { devError } from "../utils/logger";
 
 export const useAccounts = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -11,14 +12,14 @@ export const useAccounts = () => {
       const data = await window.ipc.invoke("get-accounts");
       setAccounts(data);
     } catch (err) {
-      console.error("Failed to fetch accounts:", err);
+      devError("Failed to fetch accounts:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    refreshAccounts();
+    void refreshAccounts();
     const unsubscribe = window.ipc.on(
       "accounts-updated",
       (_event, data: Account[]) => {

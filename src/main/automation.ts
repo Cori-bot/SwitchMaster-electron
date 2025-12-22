@@ -136,7 +136,7 @@ export async function autoDetectPaths() {
     }
     return null;
   } catch (e) {
-    console.error("Auto detect error:", e);
+    devError("Auto detect error:", e);
     return null;
   }
 }

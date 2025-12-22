@@ -3,8 +3,6 @@ import {
   X,
   User,
   Hash,
-  Image as ImageIcon,
-  CheckCircle2,
   Key,
   Lock,
   Eye,
@@ -20,6 +18,8 @@ import {
   MODAL_ZOOM_IN,
   Z_INDEX_MODAL,
 } from "./Modals/constants";
+
+import { devError } from "../utils/logger";
 
 interface AddAccountModalProps {
   isOpen: boolean;
@@ -74,7 +74,7 @@ const AddAccountModal: React.FC<AddAccountModalProps> = ({
         setUsername(creds.username || "");
         setPassword(creds.password || "");
       } catch (err) {
-        console.error("Failed to fetch credentials:", err);
+        devError("Failed to fetch credentials:", err);
       }
     };
 

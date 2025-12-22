@@ -3,10 +3,7 @@ import { Shield, AlertCircle, Delete } from "lucide-react";
 
 import {
   ICON_SIZE_MEDIUM,
-  ICON_SIZE_NORMAL,
-  ICON_SIZE_LARGE,
   ICON_SIZE_XSMALL,
-  ANIMATION_DURATION,
 } from "./Modals/constants";
 
 interface SecurityLockProps {

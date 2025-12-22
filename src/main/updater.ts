@@ -2,6 +2,7 @@ import { autoUpdater } from "electron-updater";
 import log from "electron-log";
 import { app, Notification, BrowserWindow } from "electron";
 import path from "path";
+import { devError } from "./logger";
 
 autoUpdater.logger = log;
 (autoUpdater.logger as any).transports.file.level = "info";
@@ -109,7 +110,7 @@ export async function handleUpdateCheck(
       }
       return await autoUpdater.checkForUpdates();
     } catch (err) {
-      console.error("Initial update check failed:", err);
+      devError("Initial update check failed:", err);
       if (mainWindow && isManual) {
         mainWindow.webContents.send("update-status", {
           status: "error",

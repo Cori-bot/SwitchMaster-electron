@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { getPaths, encryptData, decryptData } from "./config";
 import { fetchAccountStats } from "./statsService";
 import { Account } from "../shared/types";
+import { devError, devWarn } from "./logger";
 
 export async function loadAccountsMeta(): Promise<Account[]> {
   const { ACCOUNTS_FILE, ACCOUNTS_BACKUP } = getPaths();
@@ -22,7 +23,7 @@ export async function loadAccountsMeta(): Promise<Account[]> {
 
     // Si le fichier principal est vide ou absent, on tente le backup
     if (await fs.pathExists(ACCOUNTS_BACKUP)) {
-      console.warn(
+      devWarn(
         "Main accounts file invalid, attempting to restore from backup...",
       );
       const backupContent = await fs.readFile(ACCOUNTS_BACKUP, "utf-8");
@@ -34,7 +35,7 @@ export async function loadAccountsMeta(): Promise<Account[]> {
       }
     }
   } catch (e) {
-    console.error("Error loading accounts, trying backup:", e);
+    devError("Error loading accounts, trying backup:", e);
     try {
       if (await fs.pathExists(ACCOUNTS_BACKUP)) {
         const backupContent = await fs.readFile(ACCOUNTS_BACKUP, "utf-8");
@@ -43,7 +44,7 @@ export async function loadAccountsMeta(): Promise<Account[]> {
         return accounts;
       }
     } catch (backupErr) {
-      console.error("Backup restoration failed:", backupErr);
+      devError("Backup restoration failed:", backupErr);
     }
   }
   return [];
@@ -57,7 +58,7 @@ export async function saveAccountsMeta(accounts: Account[]): Promise<void> {
     await fs.outputJson(tempFile, accounts, { spaces: 2 });
     await fs.move(tempFile, ACCOUNTS_FILE, { overwrite: true });
   } catch (e) {
-    console.error("Error saving accounts:", e);
+    devError("Error saving accounts:", e);
     throw e;
   }
 }
@@ -91,7 +92,7 @@ export async function addAccount(
         newAccount.gameType,
       );
     } catch (err) {
-      console.error("Error fetching stats on addAccount:", err);
+      devError("Error fetching stats on addAccount:", err);
     }
   }
 
@@ -145,7 +146,7 @@ export async function updateAccount(
         updatedAccount.gameType,
       );
     } catch (err) {
-      console.error("Error fetching stats on updateAccount:", err);
+      devError("Error fetching stats on updateAccount:", err);
     }
   }
 
@@ -208,10 +209,7 @@ async function refreshAccountStats(account: Account): Promise<boolean> {
     }
   } catch (err) {
     const error = err as Error;
-    console.error(
-      `Failed to refresh stats for ${account.name}:`,
-      error.message,
-    );
+    devError(`Failed to refresh stats for ${account.name}:`, error.message);
   }
   return false;
 }

@@ -2,6 +2,7 @@ import { app, safeStorage } from "electron";
 import path from "path";
 import fs from "fs-extra";
 import { Config } from "../shared/types";
+import { devError, devWarn } from "./logger";
 
 let APP_DATA_PATH: string;
 let CONFIG_FILE: string;
@@ -66,7 +67,7 @@ export async function loadConfig(): Promise<Config> {
 
     // Tentative de restauration depuis le backup si le fichier principal échoue
     if (await fs.pathExists(CONFIG_BACKUP)) {
-      console.warn(
+      devWarn(
         "Main config file invalid, attempting to restore from backup...",
       );
       const backupContent = await fs.readFile(CONFIG_BACKUP, "utf-8");
@@ -78,7 +79,7 @@ export async function loadConfig(): Promise<Config> {
     }
     return appConfig;
   } catch (e) {
-    console.error("Error loading config, trying backup:", e);
+    devError("Error loading config, trying backup:", e);
     try {
       if (await fs.pathExists(CONFIG_BACKUP)) {
         const backupContent = await fs.readFile(CONFIG_BACKUP, "utf-8");
@@ -87,7 +88,7 @@ export async function loadConfig(): Promise<Config> {
         await fs.outputJson(CONFIG_FILE, appConfig, { spaces: 2 });
       }
     } catch (backupErr) {
-      console.error("Backup restoration failed:", backupErr);
+      devError("Backup restoration failed:", backupErr);
     }
     return appConfig;
   }
@@ -112,7 +113,7 @@ export async function saveConfig(newConfig: Partial<Config>): Promise<Config> {
     await fs.move(tempFile, CONFIG_FILE, { overwrite: true });
     return appConfig;
   } catch (e) {
-    console.error("Error saving config:", e);
+    devError("Error saving config:", e);
     throw e;
   }
 }
@@ -135,7 +136,7 @@ export function decryptData(encryptedData: string): string | null {
     try {
       return safeStorage.decryptString(Buffer.from(encryptedData, "base64"));
     } catch (e) {
-      console.error("Decryption failed:", e);
+      devError("Decryption failed:", e);
       return null;
     }
   } else {

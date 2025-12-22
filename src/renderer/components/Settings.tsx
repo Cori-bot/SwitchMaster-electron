@@ -2,7 +2,6 @@ import React from "react";
 import {
   FolderOpen,
   Shield,
-  Bell,
   Monitor,
   Info,
   RefreshCw,

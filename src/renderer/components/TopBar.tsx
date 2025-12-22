@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 
 interface TopBarProps {
   status: { status: string };

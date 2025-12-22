@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { devError } from "../utils/logger";
 
 export const useSecurity = () => {
   const [isLocked, setIsLocked] = useState(false);
@@ -11,7 +12,7 @@ export const useSecurity = () => {
       setIsLocked(isEnabled);
       return isEnabled;
     } catch (err) {
-      console.error("Failed to check security status:", err);
+      devError("Failed to check security status:", err);
       return false;
     }
   }, []);

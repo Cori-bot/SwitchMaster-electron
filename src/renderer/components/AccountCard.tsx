@@ -48,7 +48,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
     }
   }, [name, stats]);
 
-  const getRankColor = (rank?: string) => {
+  const getRankColor = () => {
     return "text-gray-300"; // Unification de la couleur
   };
 
@@ -87,7 +87,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
             )}
             <div>
               <div
-                className={`text-sm font-bold uppercase tracking-wider ${getRankColor(stats.rank)}`}
+                className={`text-sm font-bold uppercase tracking-wider ${getRankColor()}`}
               >
                 {stats.rank || "Unranked"}
               </div>

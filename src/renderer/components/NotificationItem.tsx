@@ -4,7 +4,6 @@ import { CheckCircle2, AlertCircle, Info, X } from "lucide-react";
 import {
   ICON_SIZE_SMALL,
   ICON_SIZE_XSMALL,
-  ANIMATION_DURATION,
 } from "./Modals/constants";
 
 interface NotificationItemProps {
@@ -24,7 +23,6 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const startXRef = useRef(0);
-  const itemRef = useRef<HTMLDivElement>(null);
 
   const handleStart = (clientX: number) => {
     startXRef.current = clientX;

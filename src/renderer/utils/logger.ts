@@ -12,6 +12,12 @@ export function devError(...args: unknown[]) {
   }
 }
 
+export function devWarn(...args: unknown[]) {
+  if (isDev) {
+    console.warn(...args);
+  }
+}
+
 export function devDebug(...args: unknown[]) {
   if (isDev) {
     console.debug(...args);

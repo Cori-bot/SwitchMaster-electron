@@ -58,7 +58,7 @@ export function useAppIpc(
       const appStatus = await window.ipc.invoke("get-status");
       updateStatusDisplay(appStatus);
     };
-    init();
+    void init();
 
     const statusUnsubscribe = window.ipc.on(
       "status-updated",
@@ -68,7 +68,7 @@ export function useAppIpc(
     );
 
     const riotClosedUnsubscribe = window.ipc.on("riot-client-closed", () => {
-      refreshStatus();
+      void refreshStatus();
     });
 
     const quitUnsubscribe = window.ipc.on("show-quit-modal", () => {

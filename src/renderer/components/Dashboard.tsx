@@ -51,7 +51,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     e.dataTransfer.dropEffect = "move";
   };
 
-  const handleDragEnter = (e: React.DragEvent, targetId: string) => {
+  const handleDragEnter = (_e: React.DragEvent, targetId: string) => {
     if (!draggedId || draggedId === targetId) return;
 
     const newAccounts = [...localAccounts];
