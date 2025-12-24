@@ -218,6 +218,8 @@ async function initApp() {
       await updateTrayMenu(launchGame, switchAccountTrigger);
     };
 
+    (global as any).refreshTray = () => updateTrayMenu(launchGame, switchAccountTrigger);
+
     // Pass the actual mainWindow to handlers that need it
     setupIpcHandlers(mainWindow, {
       launchGame,
@@ -226,7 +228,7 @@ async function initApp() {
       getStatus,
     });
     setupUpdater(mainWindow);
-    await updateTrayMenu(launchGame, switchAccountTrigger);
+    await (global as any).refreshTray();
 
     monitorRiotProcess(mainWindow, () => {
       // Logic when process ends

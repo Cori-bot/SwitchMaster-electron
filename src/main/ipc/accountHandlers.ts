@@ -19,15 +19,27 @@ export function registerAccountHandlers() {
   );
   safeHandle(
     "add-account",
-    async (_e, data) => await addAccount(data as Partial<Account>),
+    async (_e, data) => {
+      const acc = await addAccount(data as Partial<Account>);
+      (global as any).refreshTray?.();
+      return acc;
+    }
   );
   safeHandle(
     "update-account",
-    async (_e, data) => await updateAccount(data as Account),
+    async (_e, data) => {
+      const acc = await updateAccount(data as Account);
+      (global as any).refreshTray?.();
+      return acc;
+    }
   );
   safeHandle(
     "delete-account",
-    async (_e, id) => await deleteAccount(id as string),
+    async (_e, id) => {
+      const res = await deleteAccount(id as string);
+      (global as any).refreshTray?.();
+      return res;
+    }
   );
 
   safeHandle("reorder-accounts", async (_e, idsRaw) => {
@@ -44,6 +56,7 @@ export function registerAccountHandlers() {
 
     const wins = BrowserWindow.getAllWindows();
     wins.forEach((win) => win.webContents.send("accounts-updated", reordered));
+    (global as any).refreshTray?.();
 
     return true;
   });

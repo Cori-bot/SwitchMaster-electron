@@ -46,7 +46,7 @@ export function createWindow(isDev: boolean): BrowserWindow {
     // Le dossier dist/ est au même niveau que dist-main/
     const indexPath = path.join(__dirname, "..", "dist", "index.html");
     devLog("Chargement du fichier index (prod):", indexPath);
-    
+
     mainWindow.loadFile(indexPath).catch((err) => {
       devError("Erreur lors du chargement de index.html:", err);
     });
@@ -100,6 +100,9 @@ export async function updateTrayMenu(
   }
 
   const config = getConfig();
+  const accounts = await loadAccountsMeta();
+  const favoriteAccounts = accounts.filter((a) => a.isFavorite);
+
   const menuItems: Electron.MenuItemConstructorOptions[] = [
     { label: "Afficher SwitchMaster", click: () => mainWindow.show() },
     { type: "separator" },
@@ -107,14 +110,30 @@ export async function updateTrayMenu(
     { label: "Lancer Valorant", click: () => launchGame("valorant") },
   ];
 
-  if (config.lastAccountId) {
-    const accounts = await loadAccountsMeta();
+  if (favoriteAccounts.length > 0) {
+    menuItems.push({ type: "separator" });
+    menuItems.push({
+      label: "Favoris",
+      enabled: false,
+    });
+    favoriteAccounts.forEach((acc) => {
+      menuItems.push({
+        label: `⭐ ${acc.name}`,
+        click: async () => {
+          await switchAccountTrigger(acc.id);
+          void mainWindow.webContents.send("quick-connect-triggered", acc.id);
+        },
+      });
+    });
+  }
+
+  if (config.lastAccountId && !favoriteAccounts.some(a => a.id === config.lastAccountId)) {
     const lastAccount = accounts.find((a) => a.id === config.lastAccountId);
     if (lastAccount) {
       menuItems.push(
         { type: "separator" },
         {
-          label: `Connecter: ${lastAccount.name}`,
+          label: `Dernier compte: ${lastAccount.name}`,
           click: async () => {
             await switchAccountTrigger(lastAccount.id);
             void mainWindow.webContents.send(

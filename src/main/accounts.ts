@@ -84,7 +84,7 @@ export async function addAccount(
 export async function updateAccount(
   accountData: Partial<Account>,
 ): Promise<Account> {
-  const { id, name, username, password, riotId, gameType, cardImage } =
+  const { id, name, username, password, riotId, gameType, cardImage, isFavorite } =
     accountData;
   const accounts = await loadAccountsMeta();
   const index = accounts.findIndex((a) => a.id === id);
@@ -109,6 +109,7 @@ export async function updateAccount(
     riotId: riotId !== undefined ? riotId : existing.riotId,
     gameType: gameType || existing.gameType,
     cardImage: cardImage !== undefined ? cardImage : existing.cardImage,
+    isFavorite: isFavorite !== undefined ? isFavorite : existing.isFavorite,
   };
 
   if (updatedAccount.riotId) {

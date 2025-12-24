@@ -35,6 +35,7 @@ const pageTransition: Transition = {
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState("dashboard");
+  const [filter, setFilter] = useState<"all" | "favorite" | "valorant" | "league">("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [securityMode, setSecurityMode] = useState<
@@ -207,6 +208,20 @@ const App: React.FC = () => {
     }
   };
 
+  const handleToggleFavorite = async (account: Account) => {
+    try {
+      await updateAccount({
+        ...account,
+        isFavorite: !account.isFavorite,
+      });
+      showSuccess(
+        !account.isFavorite ? "Ajouté aux favoris" : "Retiré des favoris"
+      );
+    } catch (err) {
+      showError("Erreur lors de la mise à jour du favori");
+    }
+  };
+
   return (
     <div className="flex h-screen bg-[#0a0a0a] text-white overflow-hidden font-sans">
       {securityMode && (
@@ -220,7 +235,12 @@ const App: React.FC = () => {
       <Sidebar activeView={activeView} onViewChange={setActiveView} />
 
       <div className="flex-1 flex flex-col relative overflow-hidden">
-        <TopBar status={status} />
+        <TopBar
+          status={status}
+          currentFilter={filter}
+          onFilterChange={setFilter}
+          showFilters={activeView === "dashboard"}
+        />
 
         <main className="flex-1 overflow-hidden relative p-6">
           <AnimatePresence mode="wait">
@@ -236,9 +256,11 @@ const App: React.FC = () => {
               {activeView === "dashboard" ? (
                 <Dashboard
                   accounts={accounts}
+                  filter={filter}
                   activeAccountId={status.accountId}
                   onSwitch={handleSwitch}
                   onEdit={handleOpenEdit}
+                  onToggleFavorite={handleToggleFavorite}
                   onDelete={handleDelete}
                   onReorder={reorderAccounts}
                   onAddAccount={handleOpenAdd}

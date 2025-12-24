@@ -12,10 +12,12 @@ import {
 
 interface DashboardProps {
   accounts: Account[];
+  filter: "all" | "favorite" | "valorant" | "league";
   activeAccountId?: string;
   onSwitch: (id: string) => void;
   onDelete: (id: string) => void;
   onEdit: (account: Account) => void;
+  onToggleFavorite: (account: Account) => void;
   onAddAccount: () => void;
   onReorder: (accountIds: string[]) => void;
 }
@@ -45,10 +47,12 @@ const itemVariants: Variants = {
 
 const Dashboard: React.FC<DashboardProps> = ({
   accounts,
+  filter,
   activeAccountId,
   onSwitch,
   onDelete,
   onEdit,
+  onToggleFavorite,
   onAddAccount,
   onReorder,
 }) => {
@@ -62,16 +66,22 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   }, [accounts, draggedId]);
 
+  const filteredAccounts = localAccounts.filter((acc) => {
+    if (filter === "favorite") return acc.isFavorite;
+    if (filter === "valorant") return acc.gameType === "valorant";
+    if (filter === "league") return acc.gameType === "league";
+    return true;
+  });
+
   const handleDragStart = (e: React.DragEvent, id: string) => {
+    if (filter !== "all") return;
     e.dataTransfer.setData("accountId", id);
     setDraggedId(id);
     e.dataTransfer.effectAllowed = "move";
-
-    // Créer une image de drag invisible pour personnaliser le feedback si besoin
-    // Ou simplement laisser le comportement par défaut
   };
 
   const handleDragOver = (e: React.DragEvent, targetId: string) => {
+    if (filter !== "all") return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
 
@@ -83,14 +93,9 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     const targetElement = e.currentTarget as HTMLElement;
     const rect = targetElement.getBoundingClientRect();
-
-    // Calcul de la position relative (0 à 1)
     const relativeX = (e.clientX - rect.left) / rect.width;
     const relativeY = (e.clientY - rect.top) / rect.height;
 
-    // Seuil de 33% pour déclencher le swap (plus réactif que 50%)
-    // Si on vient de la gauche (sourceIndex < targetIndex), on attend d'avoir dépassé le premier tiers vers la droite
-    // Si on vient de la droite (sourceIndex > targetIndex), on attend d'être revenu avant le dernier tiers vers la gauche
     const shouldSwap = sourceIndex < targetIndex
       ? relativeX > 0.33 || relativeY > 0.33
       : relativeX < 0.67 || relativeY < 0.67;
@@ -100,7 +105,6 @@ const Dashboard: React.FC<DashboardProps> = ({
       const [removed] = newAccounts.splice(sourceIndex, 1);
       newAccounts.splice(targetIndex, 0, removed);
 
-      // On compare les IDs pour éviter les re-renders inutiles
       const currentIds = localAccounts.map(a => a.id).join(',');
       const newIds = newAccounts.map(a => a.id).join(',');
 
@@ -125,7 +129,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="flex-1 flex flex-col items-center justify-center text-center p-8"
+        className="flex-1 flex flex-col items-center justify-center text-center p-8 h-full"
       >
         <div className="w-24 h-24 bg-blue-600/10 rounded-full flex items-center justify-center mb-6 text-blue-500">
           <PlusCircle size={ICON_SIZE_XLARGE} />
@@ -148,63 +152,64 @@ const Dashboard: React.FC<DashboardProps> = ({
   }
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-8"
-    >
-      <AnimatePresence mode="popLayout">
-        {localAccounts.map((account) => (
-          <motion.div
-            key={account.id}
-            variants={itemVariants}
-            layout
-            initial="hidden"
-            animate="visible"
-            exit={{ scale: 0.8, opacity: 0 }}
-          >
-            <AccountCard
-              account={account}
-              isActive={account.id === activeAccountId}
-              onSwitch={onSwitch}
-              onDelete={onDelete}
-              onEdit={onEdit}
-              onDragStart={handleDragStart}
-              onDragOver={(e) => handleDragOver(e, account.id)}
-              onDragEnd={handleDragEnd}
-              onDragEnter={(e) => e.preventDefault()}
-              onDrop={handleDrop}
-            />
-          </motion.div>
-        ))}
-      </AnimatePresence>
-
-      <motion.button
-        variants={itemVariants}
-        whileHover={{ scale: 1.02, backgroundColor: "rgba(59, 130, 246, 0.08)" }}
-        whileTap={{ scale: 0.98 }}
-        onClick={onAddAccount}
-        className={`group relative h-[220px] rounded-3xl border-2 border-dashed border-white/10 hover:border-blue-500/50 bg-white/2 transition-all ${ANIMATION_DURATION_LONG} flex flex-col items-center justify-center gap-4 overflow-hidden cursor-pointer`}
+    <div className="flex flex-col h-full">
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-8"
       >
-        <div className={`w-14 h-14 rounded-2xl bg-white/5 group-hover:bg-blue-500/20 flex items-center justify-center text-gray-400 group-hover:text-blue-400 transition-all ${ANIMATION_DURATION_LONG} group-hover:scale-110`}>
-          <PlusCircle size={ICON_SIZE_LARGE} />
-        </div>
-        <div className="text-center">
-          <div className="text-white font-bold text-lg group-hover:text-blue-400 transition-colors">
-            Ajouter un compte
-          </div>
-          <div className="text-gray-500 text-sm mt-1">
-            League of Legends / Valorant
-          </div>
-        </div>
+        <AnimatePresence mode="popLayout">
+          {filteredAccounts.map((account) => (
+            <motion.div
+              key={account.id}
+              variants={itemVariants}
+              layout
+              initial="hidden"
+              animate="visible"
+              exit={{ scale: 0.8, opacity: 0 }}
+            >
+              <AccountCard
+                account={account}
+                isActive={account.id === activeAccountId}
+                onSwitch={onSwitch}
+                onDelete={onDelete}
+                onEdit={onEdit}
+                onToggleFavorite={onToggleFavorite}
+                onDragStart={handleDragStart}
+                onDragOver={(e) => handleDragOver(e, account.id)}
+                onDragEnd={handleDragEnd}
+                onDragEnter={(e) => e.preventDefault()}
+                onDrop={handleDrop}
+              />
+            </motion.div>
+          ))}
+        </AnimatePresence>
 
-        {/* Glow effect on hover */}
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-          <div className="absolute -inset-24 bg-blue-500/10 blur-[60px] rounded-full" />
-        </div>
-      </motion.button>
-    </motion.div>
+        <motion.button
+          variants={itemVariants}
+          whileHover={{ backgroundColor: "rgba(59, 130, 246, 0.08)" }}
+          whileTap={{ scale: 0.98 }}
+          onClick={onAddAccount}
+          className={`group relative h-[220px] rounded-3xl border-2 border-dashed border-white/10 hover:border-blue-500/50 bg-white/2 transition-all ${ANIMATION_DURATION_LONG} flex flex-col items-center justify-center gap-4 overflow-hidden cursor-pointer`}
+        >
+          <div className={`w-14 h-14 rounded-2xl bg-white/5 group-hover:bg-blue-500/20 flex items-center justify-center text-gray-400 group-hover:text-blue-400 transition-all ${ANIMATION_DURATION_LONG}`}>
+            <PlusCircle size={ICON_SIZE_LARGE} />
+          </div>
+          <div className="text-center">
+            <div className="text-white font-bold text-lg group-hover:text-blue-400 transition-colors">
+              Ajouter un compte
+            </div>
+            <div className="text-gray-500 text-sm mt-1">
+              League of Legends / Valorant
+            </div>
+          </div>
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+            <div className="absolute -inset-24 bg-blue-500/10 blur-[60px] rounded-full" />
+          </div>
+        </motion.button>
+      </motion.div>
+    </div>
   );
 };
 
