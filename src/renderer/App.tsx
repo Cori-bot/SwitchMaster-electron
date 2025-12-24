@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence, Transition } from "framer-motion";
 import Sidebar from "./components/Sidebar";
 import TopBar from "./components/TopBar";
 import Dashboard from "./components/Dashboard";
@@ -19,6 +20,18 @@ import { useNotifications } from "./hooks/useNotifications";
 import { Account, Config } from "../shared/types";
 
 import { useAppIpc } from "./hooks/useAppIpc";
+
+const pageVariants = {
+  initial: { opacity: 0, x: 10 },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -10 },
+};
+
+const pageTransition: Transition = {
+  type: "tween",
+  ease: "easeInOut",
+  duration: 0.2,
+};
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState("dashboard");
@@ -209,27 +222,39 @@ const App: React.FC = () => {
       <div className="flex-1 flex flex-col relative overflow-hidden">
         <TopBar status={status} />
 
-        <main className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-          {activeView === "dashboard" ? (
-            <Dashboard
-              accounts={accounts}
-              activeAccountId={status.accountId}
-              onSwitch={handleSwitch}
-              onEdit={handleOpenEdit}
-              onDelete={handleDelete}
-              onReorder={reorderAccounts}
-              onAddAccount={handleOpenAdd}
-            />
-          ) : (
-            <Settings
-              config={config}
-              onUpdate={handleUpdateConfig}
-              onSelectRiotPath={selectRiotPath}
-              onCheckUpdates={() => window.ipc.invoke("check-updates")}
-              onOpenPinModal={() => setSecurityMode("set")}
-              onDisablePin={() => setSecurityMode("disable")}
-            />
-          )}
+        <main className="flex-1 overflow-hidden relative p-6">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeView}
+              variants={pageVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={pageTransition}
+              className="h-full w-full overflow-y-auto custom-scrollbar"
+            >
+              {activeView === "dashboard" ? (
+                <Dashboard
+                  accounts={accounts}
+                  activeAccountId={status.accountId}
+                  onSwitch={handleSwitch}
+                  onEdit={handleOpenEdit}
+                  onDelete={handleDelete}
+                  onReorder={reorderAccounts}
+                  onAddAccount={handleOpenAdd}
+                />
+              ) : (
+                <Settings
+                  config={config}
+                  onUpdate={handleUpdateConfig}
+                  onSelectRiotPath={selectRiotPath}
+                  onCheckUpdates={() => window.ipc.invoke("check-updates")}
+                  onOpenPinModal={() => setSecurityMode("set")}
+                  onDisablePin={() => setSecurityMode("disable")}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
         </main>
 
         <div className="fixed bottom-6 right-6 flex flex-col gap-3 z-50 pointer-events-none">

@@ -1,8 +1,8 @@
 import React from "react";
+import { motion, AnimatePresence, Variants } from "framer-motion";
 import AccountCard from "./AccountCard";
 import { PlusCircle } from "lucide-react";
 import { Account } from "../hooks/useAccounts";
-
 import {
   ICON_SIZE_XLARGE,
   ICON_SIZE_LARGE,
@@ -19,6 +19,29 @@ interface DashboardProps {
   onAddAccount: () => void;
   onReorder: (accountIds: string[]) => void;
 }
+
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants: Variants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: {
+      type: "spring",
+      stiffness: 300,
+      damping: 24,
+    },
+  },
+};
 
 const Dashboard: React.FC<DashboardProps> = ({
   accounts,
@@ -42,26 +65,48 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.setData("accountId", id);
     setDraggedId(id);
-    // Nécessaire pour certains navigateurs pour permettre le drop
     e.dataTransfer.effectAllowed = "move";
+
+    // Créer une image de drag invisible pour personnaliser le feedback si besoin
+    // Ou simplement laisser le comportement par défaut
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
-  };
 
-  const handleDragEnter = (_e: React.DragEvent, targetId: string) => {
     if (!draggedId || draggedId === targetId) return;
 
-    const newAccounts = [...localAccounts];
-    const sourceIndex = newAccounts.findIndex((a) => a.id === draggedId);
-    const targetIndex = newAccounts.findIndex((a) => a.id === targetId);
+    const sourceIndex = localAccounts.findIndex((a) => a.id === draggedId);
+    const targetIndex = localAccounts.findIndex((a) => a.id === targetId);
+    if (sourceIndex === -1 || targetIndex === -1) return;
 
-    if (sourceIndex !== -1 && targetIndex !== -1) {
+    const targetElement = e.currentTarget as HTMLElement;
+    const rect = targetElement.getBoundingClientRect();
+
+    // Calcul de la position relative (0 à 1)
+    const relativeX = (e.clientX - rect.left) / rect.width;
+    const relativeY = (e.clientY - rect.top) / rect.height;
+
+    // Seuil de 33% pour déclencher le swap (plus réactif que 50%)
+    // Si on vient de la gauche (sourceIndex < targetIndex), on attend d'avoir dépassé le premier tiers vers la droite
+    // Si on vient de la droite (sourceIndex > targetIndex), on attend d'être revenu avant le dernier tiers vers la gauche
+    const shouldSwap = sourceIndex < targetIndex
+      ? relativeX > 0.33 || relativeY > 0.33
+      : relativeX < 0.67 || relativeY < 0.67;
+
+    if (shouldSwap) {
+      const newAccounts = [...localAccounts];
       const [removed] = newAccounts.splice(sourceIndex, 1);
       newAccounts.splice(targetIndex, 0, removed);
-      setLocalAccounts(newAccounts);
+
+      // On compare les IDs pour éviter les re-renders inutiles
+      const currentIds = localAccounts.map(a => a.id).join(',');
+      const newIds = newAccounts.map(a => a.id).join(',');
+
+      if (currentIds !== newIds) {
+        setLocalAccounts(newAccounts);
+      }
     }
   };
 
@@ -77,7 +122,11 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   if (accounts.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="flex-1 flex flex-col items-center justify-center text-center p-8"
+      >
         <div className="w-24 h-24 bg-blue-600/10 rounded-full flex items-center justify-center mb-6 text-blue-500">
           <PlusCircle size={ICON_SIZE_XLARGE} />
         </div>
@@ -94,31 +143,49 @@ const Dashboard: React.FC<DashboardProps> = ({
         >
           Ajouter mon premier compte
         </button>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-8">
-      {localAccounts.map((account) => (
-        <AccountCard
-          key={account.id}
-          account={account}
-          isActive={account.id === activeAccountId}
-          onSwitch={onSwitch}
-          onDelete={onDelete}
-          onEdit={onEdit}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
-          onDragEnter={handleDragEnter}
-          onDrop={handleDrop}
-        />
-      ))}
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-8"
+    >
+      <AnimatePresence mode="popLayout">
+        {localAccounts.map((account) => (
+          <motion.div
+            key={account.id}
+            variants={itemVariants}
+            layout
+            initial="hidden"
+            animate="visible"
+            exit={{ scale: 0.8, opacity: 0 }}
+          >
+            <AccountCard
+              account={account}
+              isActive={account.id === activeAccountId}
+              onSwitch={onSwitch}
+              onDelete={onDelete}
+              onEdit={onEdit}
+              onDragStart={handleDragStart}
+              onDragOver={(e) => handleDragOver(e, account.id)}
+              onDragEnd={handleDragEnd}
+              onDragEnter={(e) => e.preventDefault()}
+              onDrop={handleDrop}
+            />
+          </motion.div>
+        ))}
+      </AnimatePresence>
 
-      <button
+      <motion.button
+        variants={itemVariants}
+        whileHover={{ scale: 1.02, backgroundColor: "rgba(59, 130, 246, 0.08)" }}
+        whileTap={{ scale: 0.98 }}
         onClick={onAddAccount}
-        className={`group relative h-[220px] rounded-3xl border-2 border-dashed border-white/10 hover:border-blue-500/50 bg-white/[0.02] hover:bg-blue-500/[0.05] transition-all ${ANIMATION_DURATION_LONG} flex flex-col items-center justify-center gap-4 overflow-hidden cursor-pointer`}
+        className={`group relative h-[220px] rounded-3xl border-2 border-dashed border-white/10 hover:border-blue-500/50 bg-white/2 transition-all ${ANIMATION_DURATION_LONG} flex flex-col items-center justify-center gap-4 overflow-hidden cursor-pointer`}
       >
         <div className={`w-14 h-14 rounded-2xl bg-white/5 group-hover:bg-blue-500/20 flex items-center justify-center text-gray-400 group-hover:text-blue-400 transition-all ${ANIMATION_DURATION_LONG} group-hover:scale-110`}>
           <PlusCircle size={ICON_SIZE_LARGE} />
@@ -136,8 +203,8 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
           <div className="absolute -inset-24 bg-blue-500/10 blur-[60px] rounded-full" />
         </div>
-      </button>
-    </div>
+      </motion.button>
+    </motion.div>
   );
 };
 
