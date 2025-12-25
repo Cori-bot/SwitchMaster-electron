@@ -175,42 +175,19 @@ async function initApp() {
     });
 
     if (!isMinimized) {
-      const showWindow = () => {
-        devLog("Tentative d'affichage de la fenêtre (showWindow)...");
-        if (mainWindow) {
-          if (!mainWindow.isVisible()) {
-            mainWindow.show();
-            devLog("mainWindow.show() appelé.");
-          }
-          mainWindow.focus();
-          devLog("mainWindow.focus() appelé.");
+      if (mainWindow) {
+        if (isDev) {
+          mainWindow.show();
         } else {
-          devLog("mainWindow est null dans showWindow.");
+          // En prod, on attend que la fenêtre soit prête pour éviter le flash blanc/noir
+          mainWindow.once("ready-to-show", () => {
+            mainWindow?.show();
+          });
+          // Sécurité : si ready-to-show ne vient pas (rare), on montre quand même
+          setTimeout(() => {
+            if (mainWindow && !mainWindow.isVisible()) mainWindow.show();
+          }, 1000);
         }
-      };
-
-      if (isDev) {
-        devLog("Mode dev: affichage immédiat.");
-        showWindow();
-      } else {
-        devLog("Mode prod: configuration de l'affichage de la fenêtre.");
-        mainWindow?.once("ready-to-show", () => {
-          devLog("Événement ready-to-show reçu.");
-          showWindow();
-        });
-
-        // Sécurité supplémentaire pour l'affichage
-        mainWindow?.webContents.once("did-finish-load", () => {
-          devLog("Événement did-finish-load reçu.");
-          // On attend un petit peu après le chargement pour être sûr
-          setTimeout(showWindow, 100);
-        });
-
-        // Sécurité ultime : si rien ne s'affiche après 5 secondes
-        setTimeout(() => {
-          devLog("Fallback de sécurité (5s) pour l'affichage.");
-          showWindow();
-        }, 5000);
       }
     }
 
