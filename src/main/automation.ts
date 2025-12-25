@@ -50,16 +50,21 @@ export async function launchRiotClient(clientPath: string) {
 export async function performAutomation(username: string, password: string) {
   const psScript = path.join(SCRIPTS_PATH, "automate_login.ps1");
 
-  const runPs = (action: string): Promise<string> => {
+  const runPs = (action: string, text: string = ""): Promise<string> => {
     return new Promise((resolve, reject) => {
-      const ps = spawn("powershell.exe", [
+      const args = [
         "-ExecutionPolicy",
         "Bypass",
         "-File",
         psScript,
         "-Action",
         action,
-      ]);
+      ];
+      if (text) {
+        args.push("-Text", text);
+      }
+
+      const ps = spawn("powershell.exe", args);
       let output = "";
       ps.stdout.on("data", (d) => (output += d.toString()));
       ps.on("close", (code) => {
@@ -97,15 +102,26 @@ export async function performAutomation(username: string, password: string) {
     throw new Error("Riot Client window not detected.");
   }
 
-  clipboard.writeText(username);
+  // Double Check Focus before typing
+  await runPs("Focus");
+
+  // Injection du Username (Sécurisé)
+  await runPs("SetSecure", username);
   await runPs("PasteTab");
-  clipboard.clear();
+  await runPs("Clear");
 
   await setTimeoutAsync(LOGIN_ACTION_DELAY_MS);
 
-  clipboard.writeText(password);
+  // Injection du Password (Sécurisé)
+  await runPs("SetSecure", password);
   await runPs("PasteEnter");
-  clipboard.clear();
+
+  // Sécurité ultime : On vide le presse-papier après un court délai
+  // pour s'assurer que le password n'y reste pas une seconde de trop
+  setTimeout(() => {
+    void runPs("Clear").catch(() => { });
+    clipboard.clear(); // Double sécurité Electron + PS
+  }, 2000);
 }
 
 interface DetectionResult {

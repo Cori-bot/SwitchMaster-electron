@@ -281,7 +281,7 @@ const Settings: React.FC<SettingsProps> = ({
               />
             </div>
             <div>
-              <div className="text-white font-bold">SwitchMaster v2.5.0</div>
+              <div className="text-white font-bold">SwitchMaster v2.5.1</div>
               <div className="text-xs text-gray-500 font-medium">
                 Développé par Coridor
               </div>

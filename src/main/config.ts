@@ -36,6 +36,7 @@ let appConfig: Config = {
     enabled: false,
     pinHash: null,
   },
+  hasSeenOnboarding: false,
 };
 
 export async function ensureAppData(): Promise<void> {

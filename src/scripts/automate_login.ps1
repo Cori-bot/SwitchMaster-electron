@@ -1,8 +1,47 @@
 param (
-    [string]$Action = "Focus"
+    [string]$Action = "Focus",
+    [string]$Text = ""
 )
 
 Add-Type -AssemblyName System.Windows.Forms
+
+# Helper pour exclure de l'historique Windows (Win+V) et du Cloud
+function Set-SecureClipboard {
+    param([string]$Content)
+    
+    if ([string]::IsNullOrWhiteSpace($Content)) { return }
+
+    try {
+        $dataObject = New-Object System.Windows.Forms.DataObject
+        
+        # 1. Ajouter le texte standard
+        $dataObject.SetText($Content, [System.Windows.Forms.TextDataFormat]::UnicodeText)
+        
+        # 2. Ajouter les métadonnées de sécurité Windows
+        # CanIncludeInClipboardHistory = 0 (false)
+        # ExcludeFromCloudClipboard = 1 (true)
+        $historyFormat = "CanIncludeInClipboardHistory"
+        $cloudFormat = "ExcludeFromCloudClipboard"
+        
+        $zero = [byte[]]@(0,0,0,0)
+        $one = [byte[]]@(1,0,0,0)
+        
+        $msHistory = New-Object System.IO.MemoryStream
+        $msHistory.Write($zero, 0, 4)
+        $dataObject.SetData($historyFormat, $msHistory)
+        
+        $msCloud = New-Object System.IO.MemoryStream
+        $msCloud.Write($one, 0, 4)
+        $dataObject.SetData($cloudFormat, $msCloud)
+        
+        # Appliquer au presse-papier
+        [System.Windows.Forms.Clipboard]::SetDataObject($dataObject, $true)
+    }
+    catch {
+        # Fallback simple si l'objet complexe échoue
+        [System.Windows.Forms.Clipboard]::SetText($Content)
+    }
+}
 
 function Get-RiotWindow {
     $processes = Get-Process | Where-Object { $_.MainWindowTitle -like "*Riot Client*" -or $_.Name -like "RiotClientServices" }
@@ -18,9 +57,13 @@ function Set-WindowFocus {
     param([System.Diagnostics.Process]$Process)
     
     if ($Process) {
-        # Simple bring to front
+        # Robust focus : Try multiple times
         $wsh = New-Object -ComObject WScript.Shell
-        $success = $wsh.AppActivate($Process.Id)
+        for ($i=0; $i -lt 3; $i++) {
+            $success = $wsh.AppActivate($Process.Id)
+            if ($success) { break }
+            Start-Sleep -Milliseconds 100
+        }
         Start-Sleep -Milliseconds 200
         return $success
     }
@@ -42,19 +85,27 @@ if ($Action -eq "Check") {
 # Always focus first
 Set-WindowFocus -Process $proc
 
-if ($Action -eq "PasteTab") {
+if ($Action -eq "SetSecure") {
+    Set-SecureClipboard -Content $Text
+    exit 0
+}
+elseif ($Action -eq "PasteTab") {
     # Paste
     [System.Windows.Forms.SendKeys]::SendWait("^v")
-    Start-Sleep -Milliseconds 100
+    Start-Sleep -Milliseconds 150
     # Tab
     [System.Windows.Forms.SendKeys]::SendWait("{TAB}")
 }
 elseif ($Action -eq "PasteEnter") {
     # Paste
     [System.Windows.Forms.SendKeys]::SendWait("^v")
-    Start-Sleep -Milliseconds 100
+    Start-Sleep -Milliseconds 150
     # Enter
     [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
+}
+elseif ($Action -eq "Clear") {
+    [System.Windows.Forms.Clipboard]::Clear()
+    exit 0
 }
 elseif ($Action -eq "PasteEnterStay") {
     # Paste

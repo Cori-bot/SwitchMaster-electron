@@ -7,6 +7,7 @@ import Settings from "./components/Settings";
 import AddAccountModal from "./components/AddAccountModal";
 import SecurityLock from "./components/SecurityLock";
 import NotificationItem from "./components/NotificationItem";
+import GuideOnboarding from "./components/GuideOnboarding";
 import {
   QuitModal,
   UpdateModal,
@@ -229,6 +230,15 @@ const App: React.FC = () => {
           mode={securityMode}
           onVerify={handleVerifyPin}
           onSet={handleSetPin}
+        />
+      )}
+
+      {!config?.hasSeenOnboarding && !securityMode && (
+        <GuideOnboarding
+          config={config}
+          onUpdateConfig={handleUpdateConfig}
+          onSelectRiotPath={selectRiotPath}
+          onFinish={refreshAccounts}
         />
       )}
 

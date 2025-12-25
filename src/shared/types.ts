@@ -16,6 +16,7 @@ export interface Config {
     enabled: boolean;
     pinHash?: string | null;
   };
+  hasSeenOnboarding: boolean;
 }
 
 export interface Account {
