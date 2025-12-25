@@ -73,6 +73,7 @@ export function registerMiscHandlers(
     }
 
     if (action === "quit") {
+      (app as any).isQuitting = true;
       app.quit();
     } else {
       win?.hide();

@@ -163,6 +163,7 @@ export async function updateTrayMenu(
   );
 
   trayRef.setContextMenu(Menu.buildFromTemplate(menuItems));
+  devLog("Tray menu updated with", favoriteAccounts.length, "favorites");
 }
 
 export function getMainWindow() {

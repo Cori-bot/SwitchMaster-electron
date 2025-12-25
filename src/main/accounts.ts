@@ -51,6 +51,7 @@ export async function addAccount(
     riotId: riotId || "",
     gameType: gameType || "valorant",
     cardImage: cardImage || "",
+    isFavorite: false,
     timestamp: Date.now(),
     stats: null,
   };
