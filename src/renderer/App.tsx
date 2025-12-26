@@ -50,6 +50,7 @@ const App: React.FC = () => {
     mapId?: string;
     queueId?: string;
     players?: any[];
+    teamSide?: string;
   }>({ state: "UNKNOWN" });
   const [showAssistant, setShowAssistant] = useState(true); // User preference to hide it temporarily
 
@@ -274,6 +275,7 @@ const App: React.FC = () => {
             mapId={valorantState.mapId}
             queueId={valorantState.queueId}
             players={valorantState.players}
+            teamSide={valorantState.teamSide}
             onClose={() => setShowAssistant(false)}
           />
         </div>

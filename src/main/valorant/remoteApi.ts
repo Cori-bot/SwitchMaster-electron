@@ -65,8 +65,16 @@ export class GlzApi {
 
     constructor(localApi: ValorantApi) {
         this.localApi = localApi;
+        // Use specific ciphers to avoid 403/429 from Cloudflare (from valorant.js)
         this.agent = new https.Agent({
             rejectUnauthorized: false,
+            ciphers: [
+                "TLS_CHACHA20_POLY1305_SHA256",
+                "TLS_AES_128_GCM_SHA256",
+                "TLS_AES_256_GCM_SHA384",
+                "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
+            ].join(":"),
+            minVersion: "TLSv1.2",
         });
     }
 
@@ -159,6 +167,16 @@ export class GlzApi {
         return this.request<any>("POST", `/pregame/v1/matches/${matchId}/lock/${agentId}`);
     }
 
+    // Get current party info for a player
+    public async getPartyPlayer(puuid: string): Promise<{ CurrentPartyID: string; Members: any[] } | null> {
+        return this.request<{ CurrentPartyID: string; Members: any[] }>("GET", `/parties/v1/players/${puuid}`);
+    }
+
+    // Get party details including all members
+    public async getParty(partyId: string): Promise<{ Members: Array<{ Subject: string }> } | null> {
+        return this.request<{ Members: Array<{ Subject: string }> }>("GET", `/parties/v1/parties/${partyId}`);
+    }
+
     // Get player MMR (competitive rank) from PD server
     // Note: This only works for your OWN PUUID, not other players
     public async getPlayerMMR(puuid: string): Promise<number> {
@@ -186,6 +204,34 @@ export class GlzApi {
         } catch {
             return 0;
         }
+    }
+
+    // Get player display names from PUUIDs
+    // Endpoint: PUT https://pd.{shard}.a.pvp.net/name-service/v2/players
+    public async getPlayerNames(puuids: string[]): Promise<Map<string, { GameName: string; TagLine: string }>> {
+        const result = new Map<string, { GameName: string; TagLine: string }>();
+        if (!this.serverInfo || !this.entitlements || puuids.length === 0) return result;
+
+        try {
+            const url = `https://pd.${this.serverInfo.shard}.a.pvp.net/name-service/v2/players`;
+            const response = await this.pdRequestPut<any[]>(url, puuids);
+
+            if (response && Array.isArray(response)) {
+                for (const player of response) {
+                    if (player.Subject && player.GameName) {
+                        result.set(player.Subject, {
+                            GameName: player.GameName,
+                            TagLine: player.TagLine || "",
+                        });
+                    }
+                }
+                devLog(`[GLZ-API] Got names for ${result.size}/${puuids.length} players`);
+            }
+        } catch (err) {
+            devLog(`[GLZ-API] Failed to get player names: ${err}`);
+        }
+
+        return result;
     }
 
     // Request to PD server (different from GLZ)
@@ -227,6 +273,58 @@ export class GlzApi {
             });
 
             req.on("error", () => resolve(null));
+            req.end();
+        });
+    }
+
+    // PUT request to PD server (for name-service)
+    private async pdRequestPut<T>(url: string, body: any): Promise<T | null> {
+        if (!this.entitlements) return null;
+
+        const headers: Record<string, string> = {
+            "Authorization": `Bearer ${this.entitlements.accessToken}`,
+            "X-Riot-Entitlements-JWT": this.entitlements.entitlementsToken,
+            "X-Riot-ClientPlatform": CLIENT_PLATFORM,
+            "Content-Type": "application/json",
+        };
+
+        if (this.clientVersion) {
+            headers["X-Riot-ClientVersion"] = this.clientVersion;
+        }
+
+        const bodyStr = JSON.stringify(body);
+
+        return new Promise((resolve) => {
+            const urlObj = new URL(url);
+            const options: https.RequestOptions = {
+                hostname: urlObj.hostname,
+                path: urlObj.pathname,
+                method: "PUT",
+                headers: {
+                    ...headers,
+                    "Content-Length": Buffer.byteLength(bodyStr),
+                },
+                agent: this.agent,
+            };
+
+            const req = https.request(options, (res) => {
+                let data = "";
+                res.on("data", (chunk) => (data += chunk));
+                res.on("end", () => {
+                    if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+                        try {
+                            resolve(JSON.parse(data));
+                        } catch {
+                            resolve(null);
+                        }
+                    } else {
+                        resolve(null);
+                    }
+                });
+            });
+
+            req.on("error", () => resolve(null));
+            req.write(bodyStr);
             req.end();
         });
     }

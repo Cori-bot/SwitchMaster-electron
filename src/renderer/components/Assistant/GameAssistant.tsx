@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Zap, Shield, Search, Users, Gamepad2 } from "lucide-react";
+import { Zap, Shield, Search, Users, Gamepad2, Lock, Swords } from "lucide-react";
 import { VALORANT_AGENTS } from "../../../shared/valorant";
 
 interface GameAssistantProps {
@@ -9,6 +9,7 @@ interface GameAssistantProps {
     mapId?: string;
     queueId?: string;
     players?: any[];
+    teamSide?: string; // "Red" = Attacker, "Blue" = Defender
     onClose: () => void;
 }
 
@@ -29,6 +30,12 @@ const getMapName = (mapId?: string) => {
         "/Game/Maps/Pitt/Pitt": "Pearl",
         "/Game/Maps/Rook/Rook": "Corrode",
         "/Game/Maps/Poveglia/Range": "Entraînement",
+        // Team Deathmatch maps
+        "/Game/Maps/HURM/HURM_Alley/HURM_Alley": "District",
+        "/Game/Maps/HURM/HURM_Bowl/HURM_Bowl": "Kasbah",
+        "/Game/Maps/HURM/HURM_Helix/HURM_Helix": "Drift",
+        "/Game/Maps/HURM/HURM_HighTide/HURM_HighTide": "Glitch",
+        "/Game/Maps/HURM/HURM_Yard/HURM_Yard": "Piazza",
     };
     return maps[mapId] || "Carte Inconnue";
 };
@@ -49,6 +56,12 @@ const getMapImageUrl = (mapId?: string): string | null => {
         "/Game/Maps/Infinity/Infinity": "224b0a95-48b9-f703-1bd8-67aca101a61f",
         "/Game/Maps/Pitt/Pitt": "fd267378-4d1d-484f-ff52-77821ed10dc2",
         "/Game/Maps/Rook/Rook": "1c18ab1f-420d-0d8b-71d0-77ad3c439115",
+        // Team Deathmatch maps
+        "/Game/Maps/HURM/HURM_Alley/HURM_Alley": "690b3ed2-4dff-945b-8223-6da834e30d24",
+        "/Game/Maps/HURM/HURM_Bowl/HURM_Bowl": "12452a9d-48c3-0b02-e7eb-0381c3520404",
+        "/Game/Maps/HURM/HURM_Helix/HURM_Helix": "2c09d728-42d5-30d8-43dc-96a05cc7ee9d",
+        "/Game/Maps/HURM/HURM_HighTide/HURM_HighTide": "d6336a5a-428f-c591-98db-c8a291159134",
+        "/Game/Maps/HURM/HURM_Yard/HURM_Yard": "de28aa9b-4cbe-1003-320e-6cb3ec309557",
     };
     const uuid = mapUuids[mapId];
     return uuid ? `https://media.valorant-api.com/maps/${uuid}/splash.png` : null;
@@ -87,7 +100,7 @@ const getQueueName = (queueId?: string) => {
     return queues[queueId] || queueId;
 };
 
-const GameAssistant: React.FC<GameAssistantProps> = ({ state, mapId, queueId, players = [], onClose }) => {
+const GameAssistant: React.FC<GameAssistantProps> = ({ state, mapId, queueId, players = [], teamSide, onClose }) => {
     const [selectedAgentId, setSelectedAgentId] = React.useState<string | null>(null);
     const [searchQuery, setSearchQuery] = React.useState("");
     const [agents, setAgents] = React.useState<any[]>(
@@ -161,9 +174,9 @@ const GameAssistant: React.FC<GameAssistantProps> = ({ state, mapId, queueId, pl
                     {/* Main Content Area - Full width in INGAME */}
                     <div className={`flex flex-col gap-4 overflow-hidden ${showInstaLocker ? 'flex-1' : 'w-full'}`}>
 
-                        {/* Map/Queue Info Bar */}
+                        {/* Map/Queue/Team Info Bar */}
                         {(mapId || queueId) && (
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className={`grid gap-4 ${teamSide && state === 'PREGAME' ? 'grid-cols-3' : 'grid-cols-2'}`}>
                                 <div className="p-4 bg-white/5 border border-white/5 rounded-2xl">
                                     <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Carte</p>
                                     <p className="text-lg font-bold">{getMapName(mapId)}</p>
@@ -172,6 +185,15 @@ const GameAssistant: React.FC<GameAssistantProps> = ({ state, mapId, queueId, pl
                                     <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Mode de jeu</p>
                                     <p className="text-lg font-bold">{getQueueName(queueId)}</p>
                                 </div>
+                                {teamSide && state === 'PREGAME' && (
+                                    <div className={`p-4 border rounded-2xl ${teamSide === 'Red' ? 'bg-red-500/10 border-red-500/30' : 'bg-blue-500/10 border-blue-500/30'}`}>
+                                        <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Équipe</p>
+                                        <p className={`text-lg font-bold flex items-center gap-2 ${teamSide === 'Red' ? 'text-red-400' : 'text-blue-400'}`}>
+                                            {teamSide === 'Red' ? <Swords size={20} /> : <Shield size={20} />}
+                                            {teamSide === 'Red' ? 'Attaquant' : 'Défenseur'}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -207,20 +229,28 @@ const GameAssistant: React.FC<GameAssistantProps> = ({ state, mapId, queueId, pl
                                                 const agentId = player.CharacterID;
                                                 const agentData = agents.find(a => a.uuid === agentId);
                                                 const selectionState = player.CharacterSelectionState;
+                                                const displayName = player.DisplayName?.split('#')[0] || (agentData?.displayName || (agentId ? "Sélection..." : "En attente"));
 
                                                 return (
                                                     <motion.div key={player.Subject || index} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05 }}
-                                                        className={`flex items-center gap-3 p-3 rounded-xl border ${selectionState === 'locked' ? 'bg-blue-500/10 border-blue-500/30' : 'bg-white/5 border-white/5'}`}>
-                                                        <div className="w-10 h-10 rounded-lg bg-white/10 border border-white/10 overflow-hidden shrink-0">
-                                                            {agentId && <img src={`https://media.valorant-api.com/agents/${agentId}/displayicon.png`} alt="" className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />}
+                                                        className={`flex items-center gap-3 p-3 rounded-xl border relative ${selectionState === 'locked' ? 'bg-green-500/10 border-green-500/30' : 'bg-white/5 border-white/5'}`}>
+                                                        {/* Agent icon with lock overlay */}
+                                                        <div className="relative w-10 h-10 shrink-0">
+                                                            <div className="w-full h-full rounded-lg bg-white/10 border border-white/10 overflow-hidden">
+                                                                {agentId && <img src={`https://media.valorant-api.com/agents/${agentId}/displayicon.png`} alt="" className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />}
+                                                            </div>
+                                                            {selectionState === 'locked' && (
+                                                                <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-0.5 shadow-lg">
+                                                                    <Lock size={10} className="text-white" />
+                                                                </div>
+                                                            )}
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex items-center gap-2">
-                                                                <span className="text-sm font-bold truncate">{agentData?.displayName || (agentId ? "Sélection..." : "En attente")}</span>
+                                                                <span className="text-sm font-bold truncate">{displayName}</span>
                                                                 {level > 0 && <span className="text-[10px] text-gray-500 bg-white/5 px-1.5 py-0.5 rounded">Niv. {level}</span>}
-                                                                {selectionState === 'locked' && <span className="text-[10px] text-blue-400 bg-blue-500/20 px-1.5 py-0.5 rounded">Verrouillé</span>}
                                                             </div>
-                                                            <span className="text-xs text-gray-400">{rank > 0 ? getRankName(rank) : ""}</span>
+                                                            <span className="text-xs text-gray-400">{rank > 0 ? getRankName(rank) : (selectionState === 'locked' ? "Verrouillé" : (agentId ? "Sélection..." : ""))}</span>
                                                         </div>
                                                         {rank > 0 && <img src={`https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/${rank}/smallicon.png`} alt="" className="w-6 h-6 shrink-0" onError={(e) => (e.currentTarget.style.display = 'none')} />}
                                                     </motion.div>
@@ -237,51 +267,87 @@ const GameAssistant: React.FC<GameAssistantProps> = ({ state, mapId, queueId, pl
                         )}
 
                         {/* === INGAME VIEW === */}
-                        {state === "INGAME" && (
-                            <div className="flex-1 flex flex-col border border-white/5 rounded-2xl bg-black/20 relative overflow-hidden">
-                                {getMapImageUrl(mapId) && (
-                                    <div className="absolute inset-0 pointer-events-none">
-                                        <img src={getMapImageUrl(mapId) || ''} className="w-full h-full object-cover opacity-30" alt="" onError={(e) => (e.currentTarget.style.display = 'none')} />
-                                        <div className="absolute inset-0 bg-linear-to-t from-black via-black/70 to-black/50" />
-                                    </div>
-                                )}
-                                <div className="relative z-10 flex-1 p-4 overflow-y-auto">
-                                    <h3 className="text-xs font-bold uppercase tracking-widest text-red-400 mb-3 flex items-center gap-2">
-                                        <Users size={14} /> Joueurs dans la partie ({players.length})
-                                    </h3>
-                                    {players.length > 0 ? (
-                                        <div className="grid grid-cols-3 gap-1.5">
-                                            {players.map((player: any, index: number) => {
-                                                const rank = player.CompetitiveTier || player.SeasonalBadgeInfo?.Rank || 0;
-                                                const level = player.PlayerIdentity?.AccountLevel || 0;
-                                                const agentId = player.CharacterID;
-                                                const agentData = agents.find(a => a.uuid === agentId);
+                        {state === "INGAME" && (() => {
+                            const bluePlayers = players.filter((p: any) => p.TeamID === "Blue");
+                            const redPlayers = players.filter((p: any) => p.TeamID === "Red");
+                            const hasTeams = bluePlayers.length > 0 && redPlayers.length > 0;
 
-                                                return (
-                                                    <motion.div key={player.Subject || index} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.02 }}
-                                                        className="flex items-center gap-1.5 p-1.5 rounded-lg bg-white/5 border border-white/5">
-                                                        <div className="w-6 h-6 rounded bg-white/10 overflow-hidden shrink-0">
-                                                            {agentId && <img src={`https://media.valorant-api.com/agents/${agentId}/displayicon.png`} alt="" className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />}
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <span className="text-[10px] font-bold truncate block">{agentData?.displayName || "?"}</span>
-                                                            <span className="text-[9px] text-gray-500">
-                                                                {rank > 0 ? getRankName(rank) : `Niv. ${level}`}
-                                                            </span>
-                                                        </div>
-                                                        {rank > 0 && <img src={`https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/${rank}/smallicon.png`} alt="" className="w-4 h-4 shrink-0" onError={(e) => (e.currentTarget.style.display = 'none')} />}
-                                                    </motion.div>
-                                                );
-                                            })}
+                            const renderPlayer = (player: any, index: number, teamColor?: "blue" | "red") => {
+                                const rank = player.CompetitiveTier || player.SeasonalBadgeInfo?.Rank || 0;
+                                const level = player.PlayerIdentity?.AccountLevel || 0;
+                                const agentId = player.CharacterID;
+                                const agentData = agents.find(a => a.uuid === agentId);
+                                const displayName = player.DisplayName || agentData?.displayName || "Joueur";
+                                const borderColor = teamColor === "blue" ? "border-blue-500/30" : teamColor === "red" ? "border-red-500/30" : "border-white/5";
+
+                                return (
+                                    <motion.div key={player.Subject || index} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.02 }}
+                                        className={`flex items-center gap-1.5 p-1.5 rounded-lg bg-white/5 border ${borderColor}`}>
+                                        <div className="w-6 h-6 rounded bg-white/10 overflow-hidden shrink-0">
+                                            {agentId && <img src={`https://media.valorant-api.com/agents/${agentId}/displayicon.png`} alt="" className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />}
                                         </div>
-                                    ) : (
-                                        <div className="flex-1 flex items-center justify-center h-32">
-                                            <p className="text-gray-500">Chargement des joueurs...</p>
+                                        <div className="flex-1 min-w-0">
+                                            <span className="text-[10px] font-bold truncate block">{displayName.split('#')[0]}</span>
+                                            <span className="text-[9px] text-gray-500">
+                                                {rank > 0 ? getRankName(rank) : `Niv. ${level}`}
+                                            </span>
+                                        </div>
+                                        {rank > 0 && <img src={`https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/${rank}/smallicon.png`} alt="" className="w-4 h-4 shrink-0" onError={(e) => (e.currentTarget.style.display = 'none')} />}
+                                    </motion.div>
+                                );
+                            };
+
+                            return (
+                                <div className="flex-1 flex flex-col border border-white/5 rounded-2xl bg-black/20 relative overflow-hidden">
+                                    {getMapImageUrl(mapId) && (
+                                        <div className="absolute inset-0 pointer-events-none">
+                                            <img src={getMapImageUrl(mapId) || ''} className="w-full h-full object-cover opacity-30" alt="" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                                            <div className="absolute inset-0 bg-linear-to-t from-black via-black/70 to-black/50" />
                                         </div>
                                     )}
+                                    <div className="relative z-10 flex-1 p-4 overflow-y-auto">
+                                        {players.length > 0 ? (
+                                            hasTeams ? (
+                                                <div className="flex gap-4">
+                                                    {/* Blue Team */}
+                                                    <div className="flex-1">
+                                                        <h3 className="text-xs font-bold uppercase tracking-widest text-blue-400 mb-2 flex items-center gap-2">
+                                                            <Shield size={14} /> Équipe Bleue ({bluePlayers.length})
+                                                        </h3>
+                                                        <div className="space-y-1">
+                                                            {bluePlayers.map((p: any, i: number) => renderPlayer(p, i, "blue"))}
+                                                        </div>
+                                                    </div>
+                                                    {/* Red Team */}
+                                                    <div className="flex-1">
+                                                        <h3 className="text-xs font-bold uppercase tracking-widest text-red-400 mb-2 flex items-center gap-2">
+                                                            <Zap size={14} /> Équipe Rouge ({redPlayers.length})
+                                                        </h3>
+                                                        <div className="space-y-1">
+                                                            {redPlayers.map((p: any, i: number) => renderPlayer(p, i, "red"))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                // Free for all (Deathmatch) - single grid
+                                                <>
+                                                    <h3 className="text-xs font-bold uppercase tracking-widest text-red-400 mb-3 flex items-center gap-2">
+                                                        <Users size={14} /> Joueurs dans la partie ({players.length})
+                                                    </h3>
+                                                    <div className="grid grid-cols-3 gap-1.5">
+                                                        {players.map((p: any, i: number) => renderPlayer(p, i))}
+                                                    </div>
+                                                </>
+                                            )
+                                        ) : (
+                                            <div className="flex-1 flex items-center justify-center h-32">
+                                                <p className="text-gray-500">Chargement des joueurs...</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            );
+                        })()}
                     </div>
 
                     {/* Insta-Locker Sidebar - Only in MENUS and PREGAME */}

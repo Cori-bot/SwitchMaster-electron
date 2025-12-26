@@ -181,8 +181,20 @@ export class ValorantService {
                         if (matchData?.Players) {
                             players = matchData.Players;
                             devLog(`[VALORANT-SERVICE] Got ${players.length} players`);
-                            // Note: MMR API only works for own PUUID, not other players
-                            // Ranks will show from SeasonalBadgeInfo.Rank when available
+
+                            // Fetch player names from name-service API
+                            const puuids = players.map(p => p.Subject);
+                            const names = await this.glzApi.getPlayerNames(puuids);
+
+                            // Enrich players with display names
+                            players = players.map(p => {
+                                const nameInfo = names.get(p.Subject);
+                                return {
+                                    ...p,
+                                    DisplayName: nameInfo ? `${nameInfo.GameName}#${nameInfo.TagLine}` : undefined,
+                                };
+                            });
+
                             this.lastMmrPlayers = players;
                         }
                     } else {
@@ -218,15 +230,32 @@ export class ValorantService {
         let realMatchId = matchId;
 
         // Try to get real match data from GLZ API
+        let teamSide: string | undefined;
+        // Note: Party API doesn't work during PREGAME (returns 500 error)
+        // Stack detection would require calling party API before the match starts
         if (this.glzInitialized && this.glzApi.isReady) {
             try {
                 const playerInfo = await this.glzApi.getPregamePlayer(puuid);
                 if (playerInfo?.MatchID) {
                     realMatchId = playerInfo.MatchID;
-                    const pregameData = await this.glzApi.getPregameMatch(realMatchId);
+                    const pregameData = await this.glzApi.getPregameMatch(realMatchId) as any;
                     if (pregameData?.AllyTeam?.Players) {
                         players = pregameData.AllyTeam.Players;
-                        devLog(`[VALORANT-SERVICE] Got ${players.length} pregame players`);
+                        teamSide = pregameData.Team1; // "Red" = Attacker, "Blue" = Defender
+                        devLog(`[VALORANT-SERVICE] Got ${players.length} pregame players, Team: ${teamSide}`);
+
+                        // Fetch player names from name-service API
+                        const puuids = players.map(p => p.Subject);
+                        const names = await this.glzApi.getPlayerNames(puuids);
+
+                        // Enrich players with display names
+                        players = players.map(p => {
+                            const nameInfo = names.get(p.Subject);
+                            return {
+                                ...p,
+                                DisplayName: nameInfo ? `${nameInfo.GameName}#${nameInfo.TagLine}` : undefined,
+                            };
+                        });
                     }
                 }
             } catch {
@@ -234,18 +263,20 @@ export class ValorantService {
             }
         }
 
-        if (isNewPregame) {
-            this.updateState("PREGAME", {
-                matchId: realMatchId,
-                mapId,
-                queueId: privateData.queueId,
-                players,
-                data: privateData
-            });
-        }
+        // Always update state with current player data (to see lock status updates)
+        this.updateState("PREGAME", {
+            matchId: realMatchId,
+            mapId,
+            queueId: privateData.queueId,
+            players,
+            teamSide, // "Red" = Attacker, "Blue" = Defender
+            data: privateData
+        });
 
-        // AUTO-LOCK LOGIC
-        await this.tryAutoLock(realMatchId);
+        // AUTO-LOCK LOGIC (only on first detection)
+        if (isNewPregame) {
+            await this.tryAutoLock(realMatchId);
+        }
     }
 
     private async tryAutoLock(matchId: string) {
