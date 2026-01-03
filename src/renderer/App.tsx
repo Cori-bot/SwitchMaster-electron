@@ -12,6 +12,7 @@ import {
   QuitModal,
   UpdateModal,
   LaunchConfirmModal,
+  DeleteConfirmModal,
 } from "./components/AppModals";
 import { useAccounts } from "./hooks/useAccounts";
 import { useConfig } from "./hooks/useConfig";
@@ -44,6 +45,10 @@ const App: React.FC = () => {
   const [securityMode, setSecurityMode] = useState<
     "verify" | "set" | "disable" | null
   >(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    accountId: string | null;
+  }>({ isOpen: false, accountId: null });
   const [valorantState, setValorantState] = useState<{
     state: "MENUS" | "PREGAME" | "INGAME" | "UNKNOWN";
     matchId?: string;
@@ -188,10 +193,15 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDelete = async (accountId: string) => {
-    if (confirm("Voulez-vous vraiment supprimer ce compte ?")) {
-      await deleteAccount(accountId);
+  const handleDelete = (accountId: string) => {
+    setDeleteConfirm({ isOpen: true, accountId });
+  };
+
+  const confirmDelete = async () => {
+    if (deleteConfirm.accountId) {
+      await deleteAccount(deleteConfirm.accountId);
       showSuccess("Compte supprimé");
+      setDeleteConfirm({ isOpen: false, accountId: null });
     }
   };
 
@@ -286,6 +296,7 @@ const App: React.FC = () => {
           mode={securityMode}
           onVerify={handleVerifyPin}
           onSet={handleSetPin}
+          onCancel={() => setSecurityMode(null)}
         />
       )}
 
@@ -335,6 +346,16 @@ const App: React.FC = () => {
                   onDelete={handleDelete}
                   onReorder={reorderAccounts}
                   onAddAccount={handleOpenAdd}
+                />
+              ) : activeView === "assistant" ? (
+                <GameAssistant
+                  state={valorantState.state}
+                  matchId={valorantState.matchId}
+                  mapId={valorantState.mapId}
+                  queueId={valorantState.queueId}
+                  players={valorantState.players}
+                  teamSide={valorantState.teamSide}
+                  onClose={() => setActiveView("dashboard")}
                 />
               ) : (
                 <Settings
@@ -399,6 +420,12 @@ const App: React.FC = () => {
         onConfirm={confirmLaunch}
         onCancel={cancelLaunch}
         onClose={() => setLaunchConfirm({ ...launchConfirm, isOpen: false })}
+      />
+
+      <DeleteConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirm({ isOpen: false, accountId: null })}
       />
     </div>
   );

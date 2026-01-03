@@ -1,11 +1,20 @@
+# Script optimisé pour le login Riot Client
+# Effectue toute la séquence en un seul appel pour minimiser la latence
 param (
-    [string]$Action = "Focus",
-    [string]$Text = ""
+    [string]$Username = "",
+    [string]$Password = ""
 )
 
 Add-Type -AssemblyName System.Windows.Forms
 
-# Helper pour exclure de l'historique Windows (Win+V) et du Cloud
+# Constantes de timing optimisées
+$FOCUS_MAX_ATTEMPTS = 30
+$FOCUS_POLL_INTERVAL_MS = 1000
+$SHORT_DELAY_MS = 100
+$MEDIUM_DELAY_MS = 150
+$LONG_DELAY_MS = 500
+
+# Presse-papier sécurisé (exclut de l'historique Windows et du cloud)
 function Set-SecureClipboard {
     param([string]$Content)
     
@@ -13,38 +22,33 @@ function Set-SecureClipboard {
 
     try {
         $dataObject = New-Object System.Windows.Forms.DataObject
-        
-        # 1. Ajouter le texte standard
         $dataObject.SetText($Content, [System.Windows.Forms.TextDataFormat]::UnicodeText)
         
-        # 2. Ajouter les métadonnées de sécurité Windows
-        # CanIncludeInClipboardHistory = 0 (false)
-        # ExcludeFromCloudClipboard = 1 (true)
-        $historyFormat = "CanIncludeInClipboardHistory"
-        $cloudFormat = "ExcludeFromCloudClipboard"
-        
+        # CanIncludeInClipboardHistory = 0, ExcludeFromCloudClipboard = 1
         $zero = [byte[]]@(0,0,0,0)
         $one = [byte[]]@(1,0,0,0)
         
         $msHistory = New-Object System.IO.MemoryStream
         $msHistory.Write($zero, 0, 4)
-        $dataObject.SetData($historyFormat, $msHistory)
+        $dataObject.SetData("CanIncludeInClipboardHistory", $msHistory)
         
         $msCloud = New-Object System.IO.MemoryStream
         $msCloud.Write($one, 0, 4)
-        $dataObject.SetData($cloudFormat, $msCloud)
+        $dataObject.SetData("ExcludeFromCloudClipboard", $msCloud)
         
-        # Appliquer au presse-papier
         [System.Windows.Forms.Clipboard]::SetDataObject($dataObject, $true)
     }
     catch {
-        # Fallback simple si l'objet complexe échoue
+        # Fallback simple
         [System.Windows.Forms.Clipboard]::SetText($Content)
     }
 }
 
+# Trouve la fenêtre du Riot Client
 function Get-RiotWindow {
-    $processes = Get-Process | Where-Object { $_.MainWindowTitle -like "*Riot Client*" -or $_.Name -like "RiotClientServices" }
+    $processes = Get-Process | Where-Object { 
+        $_.MainWindowTitle -like "*Riot Client*" -or $_.Name -like "RiotClientServices" 
+    }
     foreach ($proc in $processes) {
         if ($proc.MainWindowHandle -ne 0) {
             return $proc
@@ -53,76 +57,68 @@ function Get-RiotWindow {
     return $null
 }
 
+# Donne le focus à la fenêtre
 function Set-WindowFocus {
     param([System.Diagnostics.Process]$Process)
     
     if ($Process) {
-        # Robust focus : Try multiple times
         $wsh = New-Object -ComObject WScript.Shell
-        for ($i=0; $i -lt 3; $i++) {
+        for ($i = 0; $i -lt 3; $i++) {
             $success = $wsh.AppActivate($Process.Id)
             if ($success) { break }
-            Start-Sleep -Milliseconds 100
+            Start-Sleep -Milliseconds $SHORT_DELAY_MS
         }
-        Start-Sleep -Milliseconds 200
+        Start-Sleep -Milliseconds $MEDIUM_DELAY_MS
         return $success
     }
     return $false
 }
 
-$proc = Get-RiotWindow
+# Attend que la fenêtre Riot Client soit disponible
+function Wait-ForRiotWindow {
+    for ($attempt = 0; $attempt -lt $FOCUS_MAX_ATTEMPTS; $attempt++) {
+        $proc = Get-RiotWindow
+        if ($proc) {
+            return $proc
+        }
+        Start-Sleep -Milliseconds $FOCUS_POLL_INTERVAL_MS
+    }
+    return $null
+}
 
+# ========== MAIN EXECUTION ==========
+
+# 1. Attendre et trouver la fenêtre
+$proc = Wait-ForRiotWindow
 if (-not $proc) {
-    Write-Host "Window not found"
+    Write-Host "ERROR: Window not found"
     exit 1
 }
 
-if ($Action -eq "Check") {
-    Write-Host "Found"
-    exit 0
-}
+# 2. Focus initial
+Set-WindowFocus -Process $proc | Out-Null
 
-# Always focus first
-Set-WindowFocus -Process $proc
+# 3. Injection Username + Tab
+Set-SecureClipboard -Content $Username
+Start-Sleep -Milliseconds $SHORT_DELAY_MS
+[System.Windows.Forms.SendKeys]::SendWait("^v")
+Start-Sleep -Milliseconds $MEDIUM_DELAY_MS
+[System.Windows.Forms.SendKeys]::SendWait("{TAB}")
+[System.Windows.Forms.Clipboard]::Clear()
 
-if ($Action -eq "SetSecure") {
-    Set-SecureClipboard -Content $Text
-    exit 0
-}
-elseif ($Action -eq "PasteTab") {
-    # Paste
-    [System.Windows.Forms.SendKeys]::SendWait("^v")
-    Start-Sleep -Milliseconds 150
-    # Tab
-    [System.Windows.Forms.SendKeys]::SendWait("{TAB}")
-}
-elseif ($Action -eq "PasteEnter") {
-    # Paste
-    [System.Windows.Forms.SendKeys]::SendWait("^v")
-    Start-Sleep -Milliseconds 150
-    # Enter
-    [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
-}
-elseif ($Action -eq "Clear") {
-    [System.Windows.Forms.Clipboard]::Clear()
-    exit 0
-}
-elseif ($Action -eq "PasteEnterStay") {
-    # Paste
-    [System.Windows.Forms.SendKeys]::SendWait("^v")
-    Start-Sleep -Milliseconds 100
-    # Stay Signed In sequence (Tab x 6, Enter, Tab, Enter) - based on python script logic
-    # "Presser 6 fois Tab pour naviguer au bouton Rester connecté"
-    for ($i = 0; $i -lt 6; $i++) {
-        [System.Windows.Forms.SendKeys]::SendWait("{TAB}")
-        Start-Sleep -Milliseconds 50
-    }
-    # Toggle Checkbox
-    [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
-    Start-Sleep -Milliseconds 100
-    # Tab to Submit
-    [System.Windows.Forms.SendKeys]::SendWait("{TAB}")
-    Start-Sleep -Milliseconds 50
-    # Enter to Submit
-    [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
-}
+# 4. Petit délai entre les champs
+Start-Sleep -Milliseconds $LONG_DELAY_MS
+
+# 5. Injection Password + Enter
+Set-SecureClipboard -Content $Password
+Start-Sleep -Milliseconds $SHORT_DELAY_MS
+[System.Windows.Forms.SendKeys]::SendWait("^v")
+Start-Sleep -Milliseconds $MEDIUM_DELAY_MS
+[System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
+
+# 6. Nettoyage final sécurisé
+Start-Sleep -Milliseconds $MEDIUM_DELAY_MS
+[System.Windows.Forms.Clipboard]::Clear()
+
+Write-Host "SUCCESS"
+exit 0

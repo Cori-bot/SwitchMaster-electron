@@ -9,9 +9,6 @@ const setTimeoutAsync = util.promisify(setTimeout);
 import { devDebug, devError } from "./logger";
 
 const PROCESS_TERMINATION_DELAY = 2000;
-const MAX_WINDOW_CHECK_ATTEMPTS = 30;
-const WINDOW_CHECK_POLLING_MS = 1000;
-const LOGIN_ACTION_DELAY_MS = 500;
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 export const SCRIPTS_PATH = isDev
@@ -50,79 +47,46 @@ export async function launchRiotClient(clientPath: string) {
 export async function performAutomation(username: string, password: string) {
   const psScript = path.join(SCRIPTS_PATH, "automate_login.ps1");
 
-  const runPs = (action: string, text: string = ""): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const args = [
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        psScript,
-        "-Action",
-        action,
-      ];
-      if (text) {
-        args.push("-Text", text);
-      }
+  return new Promise<void>((resolve, reject) => {
+    const args = [
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      psScript,
+      "-Username",
+      username,
+      "-Password",
+      password,
+    ];
 
-      const ps = spawn("powershell.exe", args);
-      let output = "";
-      ps.stdout.on("data", (d) => (output += d.toString()));
-      ps.on("close", (code) => {
-        if (code === 0) {
-          resolve(output);
-        } else {
-          reject(new Error(`PS Action ${action} failed`));
-        }
-      });
+    const ps = spawn("powershell.exe", args);
+    let output = "";
+    let errorOutput = "";
+
+    ps.stdout.on("data", (d) => (output += d.toString()));
+    ps.stderr.on("data", (d) => (errorOutput += d.toString()));
+
+    ps.on("close", (code) => {
+      // Sécurité supplémentaire : vider le presse-papier côté Electron
+      clipboard.clear();
+
+      if (code === 0 && output.includes("SUCCESS")) {
+        devDebug("Login automation completed successfully");
+        resolve();
+      } else {
+        devError("Login automation failed:", errorOutput || output);
+        reject(new Error("Login automation failed"));
+      }
     });
-  };
 
-  async function waitForWindowRecursive(
-    currentAttempt: number = 0,
-  ): Promise<boolean> {
-    if (currentAttempt >= MAX_WINDOW_CHECK_ATTEMPTS) {
-      return false;
-    }
-    try {
-      const check = await runPs("Check");
-      if (check && check.includes("Found")) {
-        return true;
-      }
-    } catch (e) {
-      // Window check attempt failed, ignore and retry
-      devDebug("Window check retry...");
-    }
-    await setTimeoutAsync(WINDOW_CHECK_POLLING_MS);
-    return waitForWindowRecursive(currentAttempt + 1);
-  }
-
-  const isWindowFound = await waitForWindowRecursive();
-
-  if (!isWindowFound) {
-    throw new Error("Riot Client window not detected.");
-  }
-
-  // Double Check Focus before typing
-  await runPs("Focus");
-
-  // Injection du Username (Sécurisé)
-  await runPs("SetSecure", username);
-  await runPs("PasteTab");
-  await runPs("Clear");
-
-  await setTimeoutAsync(LOGIN_ACTION_DELAY_MS);
-
-  // Injection du Password (Sécurisé)
-  await runPs("SetSecure", password);
-  await runPs("PasteEnter");
-
-  // Sécurité ultime : On vide le presse-papier après un court délai
-  // pour s'assurer que le password n'y reste pas une seconde de trop
-  setTimeout(() => {
-    void runPs("Clear").catch(() => { });
-    clipboard.clear(); // Double sécurité Electron + PS
-  }, 2000);
+    ps.on("error", (err) => {
+      clipboard.clear();
+      devError("PowerShell spawn error:", err);
+      reject(err);
+    });
+  });
 }
+
 
 interface DetectionResult {
   DisplayName?: string;
