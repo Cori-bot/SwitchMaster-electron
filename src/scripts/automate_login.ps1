@@ -5,6 +5,30 @@ param (
     [string]$Password = ""
 )
 
+# Read from stdin if credentials are missing
+if ([string]::IsNullOrWhiteSpace($Username) -or [string]::IsNullOrWhiteSpace($Password)) {
+    try {
+        $jsonInput = $null
+
+        # Check if input is redirected and read it (works reliably with -File)
+        if ([Console]::IsInputRedirected) {
+            $jsonInput = [Console]::In.ReadToEnd()
+        }
+        # Fallback to $input if populated
+        elseif ($input) {
+            $jsonInput = $input | Out-String
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($jsonInput)) {
+            $credentials = $jsonInput | ConvertFrom-Json
+            if ($credentials.Username) { $Username = $credentials.Username }
+            if ($credentials.Password) { $Password = $credentials.Password }
+        }
+    } catch {
+        # Silent fail on JSON parse/read, will fail later if empty
+    }
+}
+
 Add-Type -AssemblyName System.Windows.Forms
 
 # Constantes de timing optimisées
