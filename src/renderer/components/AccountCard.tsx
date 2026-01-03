@@ -1,7 +1,7 @@
 import React from "react";
 import { MoreVertical, Play, Trash2, Edit2, Star } from "lucide-react";
 import { Account } from "../hooks/useAccounts";
-import { devLog } from "../utils/logger";
+
 
 import leagueIcon from "@assets/league.png";
 import valorantIcon from "@assets/valorant.png";
@@ -43,14 +43,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
 }) => {
   const { id, name, riotId, gameType, stats, cardImage, isFavorite } = account;
 
-  // Dev logs for stats debugging
-  React.useEffect(() => {
-    if (stats) {
-      devLog(`[DEV-STATS] ${name}:`, {
-        rank: stats.rank,
-      });
-    }
-  }, [name, stats]);
+
 
   const getRankColor = () => {
     return "text-gray-300"; // Unification de la couleur
@@ -122,15 +115,12 @@ const AccountCard: React.FC<AccountCardProps> = ({
         : "border-transparent hover:border-blue-500/50 hover:shadow-2xl hover:shadow-blue-500/10"
         } overflow-hidden`}
     >
-      {/* Background image + voile dans un wrapper interne */}
+      {/* Background image & gradient overlay */}
       {cardImage && (
-        <>
-          <div
-            className="absolute inset-0"
-            style={cardStyle}
-          />
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute inset-0" style={cardStyle} />
           <div className="absolute inset-0 bg-linear-to-b from-black/55 to-black/90" />
-        </>
+        </div>
       )}
 
       <div className="p-5 relative z-10">

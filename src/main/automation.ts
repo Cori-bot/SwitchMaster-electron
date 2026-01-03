@@ -10,8 +10,7 @@ import { devDebug, devError } from "./logger";
 
 const PROCESS_TERMINATION_DELAY = 2000;
 
-const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
-export const SCRIPTS_PATH = isDev
+export const SCRIPTS_PATH = !app.isPackaged
   ? path.join(__dirname, "..", "scripts")
   : path.join(process.resourcesPath, "scripts");
 

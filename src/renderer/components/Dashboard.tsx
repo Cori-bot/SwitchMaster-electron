@@ -66,12 +66,14 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   }, [accounts, draggedId]);
 
-  const filteredAccounts = localAccounts.filter((acc) => {
-    if (filter === "favorite") return acc.isFavorite;
-    if (filter === "valorant") return acc.gameType === "valorant";
-    if (filter === "league") return acc.gameType === "league";
-    return true;
-  });
+  const filteredAccounts = React.useMemo(() => {
+    return localAccounts.filter((acc) => {
+      if (filter === "favorite") return acc.isFavorite;
+      if (filter === "valorant") return acc.gameType === "valorant";
+      if (filter === "league") return acc.gameType === "league";
+      return true;
+    });
+  }, [localAccounts, filter]);
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     if (filter !== "all") return;

@@ -59,6 +59,23 @@ export function createWindow(isDev: boolean): BrowserWindow {
     }
   });
 
+  // Désactiver les DevTools en production
+  if (!isDev) {
+    mainWindow.webContents.on("devtools-opened", () => {
+      mainWindow.webContents.closeDevTools();
+    });
+
+    // Empêcher l'ouverture via raccourcis clavier (optionnel mais recommandé)
+    mainWindow.webContents.on("before-input-event", (event, input) => {
+      if ((input.control || input.meta) && input.shift && input.key.toLowerCase() === 'i') {
+        event.preventDefault();
+      }
+      if (input.key === 'F12') {
+        event.preventDefault();
+      }
+    });
+  }
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: "deny" };

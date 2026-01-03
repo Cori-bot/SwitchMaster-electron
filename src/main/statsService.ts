@@ -1,9 +1,8 @@
 import https from "https";
 import { IncomingMessage } from "http";
+import { devLog, devError } from "./logger";
 
 // Service for fetching account statistics from tracker.gg
-
-import { devLog, devError } from "./logger";
 
 interface TrackerSegment {
   attributes?: {
@@ -82,71 +81,50 @@ function parseRiotId(riotId: string) {
   };
 }
 
+// Helper to find the best segment in Tracker response
+function findBestSegment(segments: TrackerSegment[], preferredPlaylists: string[]) {
+  let segment = segments.find(
+    (s) =>
+      s.attributes?.playlist &&
+      preferredPlaylists.includes(s.attributes.playlist.toLowerCase()),
+  );
+
+  if (!segment) {
+    segment = segments.find((s) => s.stats && (s.stats.tier || s.stats.rank));
+  }
+
+  return segment || segments[0];
+}
+
+// Extraction commune des métadonnées de rang
+function extractRankInfo(segment: TrackerSegment, defaultIcon: string) {
+  const stats = segment.stats || {};
+  const rankStat = stats.tier || stats.rank || {};
+
+  const rank = (rankStat.metadata && (rankStat.metadata.rankName || rankStat.metadata.tierName)) || "Unranked";
+  const icon = (rankStat.metadata && rankStat.metadata.iconUrl) || defaultIcon;
+
+  return { rank, icon };
+}
+
 //Fetch Valorant account statistics
 async function fetchValorantStats(riotId: string) {
   const { name, tag } = parseRiotId(riotId);
-  const baseUrl = `https://api.tracker.gg/api/v2/valorant/standard/profile/riot/${name}%23${tag}`;
-  const urlObj = new URL(baseUrl);
-  urlObj.searchParams.set("source", "web");
-  const url = urlObj.toString();
+  const url = `https://api.tracker.gg/api/v2/valorant/standard/profile/riot/${name}%23${tag}?source=web`;
 
   try {
     const apiResponse = await httpsGet<TrackerResponse>(url, HEADERS);
+    if (!apiResponse.data?.segments) throw new Error("Invalid response");
 
-    if (!apiResponse.data || !apiResponse.data.segments) {
-      throw new Error("Invalid response structure from API");
-    }
+    const VALORANT_PLAYLISTS = ["competitive", "comp", "ranked_solo_5x5", "ranked-solo-5x5"];
+    const segment = findBestSegment(apiResponse.data.segments, VALORANT_PLAYLISTS);
+    const { rank, icon } = extractRankInfo(segment, "https://trackercdn.com/cdn/tracker.gg/valorant/icons/tiers/0.png");
 
-    const segments = apiResponse.data.segments;
+    devLog(`[DEV-STATS] VALORANT - ${riotId}: { rank: '${rank}' }`);
 
-    // Find competitive segment
-    const VALORANT_PLAYLISTS = [
-      "competitive",
-      "comp",
-      "ranked_solo_5x5",
-      "ranked-solo-5x5",
-    ];
-    let competitiveSegment = segments.find(
-      (s) =>
-        s.attributes?.playlist &&
-        VALORANT_PLAYLISTS.includes(s.attributes.playlist.toLowerCase()),
-    );
-
-    // Fallback: search for any segment that has rank/tier info
-    if (!competitiveSegment) {
-      competitiveSegment = segments.find(
-        (s) => s.stats && (s.stats.tier || s.stats.rank),
-      );
-    }
-
-    if (!competitiveSegment) {
-      competitiveSegment = segments[0];
-    }
-
-    const stats = competitiveSegment.stats || {};
-
-    // Extraction sécurisée des métadonnées
-    const rankStat = stats.tier || stats.rank || {};
-    const rankTierName =
-      (rankStat.metadata &&
-        (rankStat.metadata.rankName || rankStat.metadata.tierName)) ||
-      "Unranked";
-    const rankIconUrl =
-      (rankStat.metadata && rankStat.metadata.iconUrl) ||
-      "https://trackercdn.com/cdn/tracker.gg/valorant/icons/tiers/0.png";
-
-    devLog(`[DEV-STATS] VALORANT - ${riotId}:`, {
-      rank: rankTierName,
-    });
-
-    return {
-      rank: rankTierName,
-      rankIcon: rankIconUrl,
-      lastUpdate: Date.now(),
-    };
+    return { rank, rankIcon: icon, lastUpdate: Date.now() };
   } catch (err) {
-    const error = err as Error;
-    devError(`Error fetching Valorant stats for ${riotId}:`, error.message);
+    devError(`Error Valorant stats ${riotId}:`, (err as Error).message);
     return null;
   }
 }
@@ -158,61 +136,17 @@ async function fetchLeagueStats(riotId: string) {
 
   try {
     const apiResponse = await httpsGet<TrackerResponse>(url, HEADERS);
+    if (!apiResponse.data?.segments) throw new Error("Invalid response");
 
-    if (!apiResponse.data || !apiResponse.data.segments) {
-      throw new Error("Invalid response structure from API");
-    }
+    const LEAGUE_PLAYLISTS = ["ranked_solo_5x5", "ranked-solo-5x5", "ranked-solo", "rank-solo"];
+    const segment = findBestSegment(apiResponse.data.segments, LEAGUE_PLAYLISTS);
+    const { rank, icon } = extractRankInfo(segment, "https://trackercdn.com/cdn/tracker.gg/lol/ranks/2023/icons/unranked.svg");
 
-    const segments = apiResponse.data.segments;
+    devLog(`[DEV-STATS] LEAGUE - ${riotId}: { rank: '${rank}' }`);
 
-    // Find ranked-solo-5x5 segment
-    const LEAGUE_PLAYLISTS = [
-      "ranked_solo_5x5",
-      "ranked-solo-5x5",
-      "ranked-solo",
-      "rank-solo",
-    ];
-    let rankedSegment = segments.find(
-      (s) =>
-        s.attributes?.playlist &&
-        LEAGUE_PLAYLISTS.includes(s.attributes.playlist.toLowerCase()),
-    );
-
-    // Fallback: search for any segment that has rank/tier info
-    if (!rankedSegment) {
-      rankedSegment = segments.find(
-        (s) => s.stats && (s.stats.tier || s.stats.rank),
-      );
-    }
-
-    if (!rankedSegment) {
-      rankedSegment = segments[0];
-    }
-
-    const stats = rankedSegment.stats || {};
-
-    // Extraction sécurisée des métadonnées
-    const rankStat = stats.tier || stats.rank || {};
-    const rankTierName =
-      (rankStat.metadata &&
-        (rankStat.metadata.rankName || rankStat.metadata.tierName)) ||
-      "Unranked";
-    const rankIconUrl =
-      (rankStat.metadata && rankStat.metadata.iconUrl) ||
-      "https://trackercdn.com/cdn/tracker.gg/lol/ranks/2023/icons/unranked.svg";
-
-    devLog(`[DEV-STATS] LEAGUE - ${riotId}:`, {
-      rank: rankTierName,
-    });
-
-    return {
-      rank: rankTierName,
-      rankIcon: rankIconUrl,
-      lastUpdate: Date.now(),
-    };
+    return { rank, rankIcon: icon, lastUpdate: Date.now() };
   } catch (err) {
-    const error = err as Error;
-    devError(`Error fetching League stats for ${riotId}:`, error.message);
+    devError(`Error League stats ${riotId}:`, (err as Error).message);
     return null;
   }
 }
