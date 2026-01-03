@@ -53,13 +53,16 @@ export async function performAutomation(username: string, password: string) {
       "Bypass",
       "-File",
       psScript,
-      "-Username",
-      username,
-      "-Password",
-      password,
+      // Removed credentials from args for security
     ];
 
     const ps = spawn("powershell.exe", args);
+
+    // Send credentials via stdin as JSON
+    const inputData = JSON.stringify({ Username: username, Password: password });
+    ps.stdin.write(inputData);
+    ps.stdin.end();
+
     let output = "";
     let errorOutput = "";
 
