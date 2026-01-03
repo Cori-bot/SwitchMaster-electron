@@ -2,6 +2,7 @@ import React from "react";
 import { LayoutDashboard, Settings } from "lucide-react";
 
 import logoImg from "@assets/logo.png";
+import visperLogo from "@assets/visper_logo.png";
 
 interface SidebarProps {
   activeView: string;
@@ -36,6 +37,23 @@ const Sidebar: React.FC<SidebarProps> = ({
         >
           <LayoutDashboard size={20} />
           <span className="font-medium">Comptes</span>
+        </button>
+
+        <button
+          onClick={() => window.ipc.invoke("open-visper")}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer text-gray-400 hover:bg-white/5 hover:text-white group"
+        >
+          <div className="p-1 rounded-lg bg-transparent group-hover:bg-blue-600/10 transition-colors">
+            <img
+              src={visperLogo}
+              alt="Visper"
+              className="w-5 h-5 object-contain"
+            />
+          </div>
+          <span className="font-medium">Visper</span>
+          <div className="ml-auto px-1.5 py-0.5 bg-blue-600/10 border border-blue-600/20 rounded-md">
+            <span className="text-[8px] font-bold text-blue-500 uppercase">Beta</span>
+          </div>
         </button>
 
         <button

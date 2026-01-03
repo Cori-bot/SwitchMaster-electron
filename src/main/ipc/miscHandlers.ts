@@ -5,6 +5,7 @@ import { safeHandle } from "./utils";
 import { IpcContext } from "./types";
 import { handleUpdateCheck } from "../updater";
 import { devLog, devError } from "../logger";
+import { createVisperWindow } from "../window";
 
 export function registerMiscHandlers(
   getMainWindow: () => BrowserWindow | null,
@@ -106,5 +107,11 @@ export function registerMiscHandlers(
   safeHandle("restart-app", () => {
     app.relaunch();
     app.exit();
+  });
+
+  safeHandle("open-visper", () => {
+    const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+    createVisperWindow(isDev);
+    return true;
   });
 }

@@ -12,12 +12,15 @@ import { loadAccountsMeta } from "./accounts";
 import { devLog, devError } from "./logger";
 
 let mainWindow: BrowserWindow;
-
+let visperWindow: BrowserWindow | null = null;
 
 const DEFAULT_WIDTH = 1000;
 const DEFAULT_HEIGHT = 700;
 const MIN_WIDTH = 600;
 const MIN_HEIGHT = 600;
+
+const VISPER_WIDTH = 800;
+const VISPER_HEIGHT = 600;
 
 export function createWindow(isDev: boolean): BrowserWindow {
   mainWindow = new BrowserWindow({
@@ -42,8 +45,6 @@ export function createWindow(isDev: boolean): BrowserWindow {
   if (isDev) {
     mainWindow.loadURL("http://localhost:3000");
   } else {
-    // Utilisation de __dirname car main.js est dans dist-main/
-    // Le dossier dist/ est au même niveau que dist-main/
     const indexPath = path.join(__dirname, "..", "dist", "index.html");
     devLog("Chargement du fichier index (prod):", indexPath);
 
@@ -59,13 +60,11 @@ export function createWindow(isDev: boolean): BrowserWindow {
     }
   });
 
-  // Désactiver les DevTools en production
   if (!isDev) {
     mainWindow.webContents.on("devtools-opened", () => {
       mainWindow.webContents.closeDevTools();
     });
 
-    // Empêcher l'ouverture via raccourcis clavier (optionnel mais recommandé)
     mainWindow.webContents.on("before-input-event", (event, input) => {
       if ((input.control || input.meta) && input.shift && input.key.toLowerCase() === 'i') {
         event.preventDefault();
@@ -86,7 +85,6 @@ export function createWindow(isDev: boolean): BrowserWindow {
     const config = getConfig();
     if (config.showQuitModal) {
       event.preventDefault();
-      // On s'assure que le message est bien envoyé
       if (mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
         mainWindow.webContents.send("show-quit-modal");
       }
@@ -98,6 +96,63 @@ export function createWindow(isDev: boolean): BrowserWindow {
 
   return mainWindow;
 }
+
+export function createVisperWindow(isDev: boolean): BrowserWindow {
+  if (visperWindow) {
+    visperWindow.focus();
+    return visperWindow;
+  }
+
+  visperWindow = new BrowserWindow({
+    width: VISPER_WIDTH,
+    height: VISPER_HEIGHT,
+    minWidth: 400,
+    minHeight: 300,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, "preload.js"),
+    },
+    backgroundColor: "#0a0a0a",
+    frame: true, // On garde le cadre pour l'illustrer dans la barre Windows
+    show: false,
+    autoHideMenuBar: true,
+    title: "Visper",
+    icon: app.isPackaged
+      ? path.join(process.resourcesPath, "assets", "visper_logo.png")
+      : path.join(__dirname, "..", "..", "src", "assets", "visper_logo.png"),
+  });
+
+  const visperUrl = isDev
+    ? "http://localhost:3000/#/visper"
+    : `file://${path.join(__dirname, "..", "dist", "index.html")}#/visper`;
+
+  if (isDev) {
+    visperWindow.loadURL(visperUrl);
+  } else {
+    visperWindow.loadFile(path.join(__dirname, "..", "dist", "index.html"), { hash: "/visper" });
+  }
+
+  visperWindow.once("ready-to-show", () => {
+    visperWindow?.show();
+    // Réduire la fenêtre principale à l'ouverture
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.minimize();
+    }
+  });
+
+  visperWindow.on("closed", () => {
+    visperWindow = null;
+    // Restaurer la fenêtre principale à la fermeture
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+
+  return visperWindow;
+}
+
 
 let trayRef: Tray | null = null;
 
