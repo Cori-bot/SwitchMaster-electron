@@ -1,20 +1,16 @@
 import React from "react";
-import { LayoutDashboard, Settings, Rocket } from "lucide-react";
+import { LayoutDashboard, Settings } from "lucide-react";
 
 import logoImg from "@assets/logo.png";
 
 interface SidebarProps {
   activeView: string;
   onViewChange: (view: string) => void;
-  valorantActive?: boolean;
-  onOpenAssistant?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
   activeView,
   onViewChange,
-  valorantActive,
-  onOpenAssistant
 }) => {
 
   return (
@@ -52,22 +48,10 @@ const Sidebar: React.FC<SidebarProps> = ({
           <Settings size={20} />
           <span className="font-medium">Paramètres</span>
         </button>
-
-        {valorantActive && (
-          <button
-            onClick={onOpenAssistant}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer bg-red-600/10 text-red-500 hover:bg-red-600/20 border border-red-600/20 mt-4 group"
-          >
-            <div className="relative">
-              <Rocket size={20} className="group-hover:rotate-12 transition-transform" />
-              <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full border-2 border-[#1a1a1a] animate-pulse" />
-            </div>
-            <span className="font-bold text-xs uppercase tracking-widest">Assistant Live</span>
-          </button>
-        )}
       </nav>
     </aside>
   );
 };
 
 export default Sidebar;
+

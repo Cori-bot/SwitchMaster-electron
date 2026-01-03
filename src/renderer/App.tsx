@@ -23,7 +23,6 @@ import { Account, Config } from "../shared/types";
 
 import { useAppIpc } from "./hooks/useAppIpc";
 import LoadingScreen from "./components/LoadingScreen";
-import GameAssistant from "./components/Assistant/GameAssistant";
 
 const pageVariants = {
   initial: { opacity: 0, x: 10 },
@@ -49,15 +48,6 @@ const App: React.FC = () => {
     isOpen: boolean;
     accountId: string | null;
   }>({ isOpen: false, accountId: null });
-  const [valorantState, setValorantState] = useState<{
-    state: "MENUS" | "PREGAME" | "INGAME" | "UNKNOWN";
-    matchId?: string;
-    mapId?: string;
-    queueId?: string;
-    players?: any[];
-    teamSide?: string;
-  }>({ state: "UNKNOWN" });
-  const [showAssistant, setShowAssistant] = useState(true); // User preference to hide it temporarily
 
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
@@ -124,23 +114,6 @@ const App: React.FC = () => {
       setTimeout(() => setIsInitialLoading(false), remaining);
     };
     init();
-
-    // Valorant State Listener
-    const unsubVal = window.ipc.on("valorant-state", (_e, data: any) => {
-      // Only auto-show assistant when STATE changes, not on every data update
-      const prevState = valorantState.state;
-      const newState = data.state;
-
-      setValorantState(data);
-
-      // Auto-show assistant only when transitioning from UNKNOWN to an active state
-      if (prevState === "UNKNOWN" && (newState === "MENUS" || newState === "PREGAME" || newState === "INGAME")) {
-        setShowAssistant(true);
-      }
-    });
-    return () => {
-      unsubVal();
-    };
   }, []);
 
   const confirmLaunch = async () => {
@@ -276,20 +249,7 @@ const App: React.FC = () => {
         {isInitialLoading && <LoadingScreen />}
       </AnimatePresence>
 
-      {/* Valorant Assistant Overlay */}
-      {showAssistant && (valorantState.state === "MENUS" || valorantState.state === "PREGAME" || valorantState.state === "INGAME") && !isInitialLoading && (
-        <div className="fixed inset-0 z-40 bg-[#0a0a0a]">
-          <GameAssistant
-            state={valorantState.state}
-            matchId={valorantState.matchId}
-            mapId={valorantState.mapId}
-            queueId={valorantState.queueId}
-            players={valorantState.players}
-            teamSide={valorantState.teamSide}
-            onClose={() => setShowAssistant(false)}
-          />
-        </div>
-      )}
+
 
       {securityMode && (
         <SecurityLock
@@ -312,8 +272,6 @@ const App: React.FC = () => {
       <Sidebar
         activeView={activeView}
         onViewChange={setActiveView}
-        valorantActive={valorantState.state !== "UNKNOWN"}
-        onOpenAssistant={() => setShowAssistant(true)}
       />
 
       <div className="flex-1 flex flex-col relative overflow-hidden">
@@ -346,16 +304,6 @@ const App: React.FC = () => {
                   onDelete={handleDelete}
                   onReorder={reorderAccounts}
                   onAddAccount={handleOpenAdd}
-                />
-              ) : activeView === "assistant" ? (
-                <GameAssistant
-                  state={valorantState.state}
-                  matchId={valorantState.matchId}
-                  mapId={valorantState.mapId}
-                  queueId={valorantState.queueId}
-                  players={valorantState.players}
-                  teamSide={valorantState.teamSide}
-                  onClose={() => setActiveView("dashboard")}
                 />
               ) : (
                 <Settings
