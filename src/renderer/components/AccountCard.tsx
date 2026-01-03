@@ -1,5 +1,5 @@
 import React from "react";
-import { MoreVertical, Play, Trash2, Edit2, GripVertical, Star } from "lucide-react";
+import { MoreVertical, Play, Trash2, Edit2, Star } from "lucide-react";
 import { Account } from "../hooks/useAccounts";
 import { devLog } from "../utils/logger";
 
@@ -27,7 +27,6 @@ interface AccountCardProps {
   onDrop: (e: React.DragEvent, id: string) => void;
 }
 
-const GRADIENT_OPACITY = 0.55;
 
 const AccountCard: React.FC<AccountCardProps> = ({
   account,
@@ -59,7 +58,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
 
   const cardStyle = cardImage
     ? {
-      backgroundImage: `linear-gradient(rgba(0,0,0,${GRADIENT_OPACITY}), rgba(0,0,0,0.9)), url('${cardImage.startsWith("http")
+      backgroundImage: `url('${cardImage.startsWith("http")
         ? cardImage
         : `sm-img://${cardImage.replace(/\\/g, "/")}`
         }')`,
@@ -112,23 +111,29 @@ const AccountCard: React.FC<AccountCardProps> = ({
 
   return (
     <div
-      style={cardStyle}
       draggable
       onDragStart={(e) => onDragStart(e, id)}
       onDragOver={(e) => onDragOver(e)}
       onDragEnd={(e) => onDragEnd(e)}
       onDragEnter={(e) => onDragEnter(e, id)}
       onDrop={(e) => onDrop(e, id)}
-      className={`group relative bg-[#1a1a1a] rounded-2xl border-2 transition-all ${ANIMATION_DURATION_LONG} ease-in-out ${isActive
+      className={`group relative bg-[#1a1a1a] rounded-2xl border-2 transition-all ${ANIMATION_DURATION_LONG} ease-in-out cursor-grab active:cursor-grabbing active:scale-[0.98] active:opacity-80 ${isActive
         ? "border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.2)]"
-        : "border-white/5 hover:border-blue-500/50 hover:shadow-2xl hover:shadow-blue-500/10"
-        } overflow-hidden ${cardImage ? "has-bg" : ""}`}
+        : "border-transparent hover:border-blue-500/50 hover:shadow-2xl hover:shadow-blue-500/10"
+        } overflow-hidden`}
     >
-      <div className="absolute top-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing">
-        <GripVertical size={ICON_SIZE_SMALL} className="text-gray-500" />
-      </div>
+      {/* Background image + voile dans un wrapper interne */}
+      {cardImage && (
+        <>
+          <div
+            className="absolute inset-0"
+            style={cardStyle}
+          />
+          <div className="absolute inset-0 bg-linear-to-b from-black/55 to-black/90" />
+        </>
+      )}
 
-      <div className="p-5">
+      <div className="p-5 relative z-10">
         <div className="flex justify-between items-start mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-2">
@@ -141,8 +146,8 @@ const AccountCard: React.FC<AccountCardProps> = ({
                   onToggleFavorite(account);
                 }}
                 className={`p-1 rounded-md transition-all duration-200 hover:scale-110 ${isFavorite
-                    ? "text-yellow-400"
-                    : "text-gray-500 hover:text-yellow-400"
+                  ? "text-yellow-400"
+                  : "text-gray-500 hover:text-yellow-400"
                   }`}
               >
                 <Star size={16} fill={isFavorite ? "currentColor" : "none"} />

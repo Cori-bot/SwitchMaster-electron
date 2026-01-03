@@ -78,6 +78,13 @@ const Dashboard: React.FC<DashboardProps> = ({
     e.dataTransfer.setData("accountId", id);
     setDraggedId(id);
     e.dataTransfer.effectAllowed = "move";
+
+    // Créer une image de drag transparente pour un effet plus propre
+    const ghost = document.createElement("div");
+    ghost.style.opacity = "0";
+    document.body.appendChild(ghost);
+    e.dataTransfer.setDragImage(ghost, 0, 0);
+    setTimeout(() => document.body.removeChild(ghost), 0);
   };
 
   const handleDragOver = (e: React.DragEvent, targetId: string) => {
@@ -168,6 +175,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               initial="hidden"
               animate="visible"
               exit={{ scale: 0.8, opacity: 0 }}
+              className={draggedId === account.id ? "opacity-50 scale-95 transition-all duration-200" : "transition-all duration-200"}
             >
               <AccountCard
                 account={account}
