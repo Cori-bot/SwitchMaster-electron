@@ -18,6 +18,7 @@ import { useAccounts } from "./hooks/useAccounts";
 import { useConfig } from "./hooks/useConfig";
 import { useSecurity } from "./hooks/useSecurity";
 import { useNotifications } from "./hooks/useNotifications";
+import { useValorantState } from "./hooks/useValorantState";
 
 import { Account, Config } from "../shared/types";
 
@@ -49,15 +50,8 @@ const App: React.FC = () => {
     isOpen: boolean;
     accountId: string | null;
   }>({ isOpen: false, accountId: null });
-  const [valorantState, setValorantState] = useState<{
-    state: "MENUS" | "PREGAME" | "INGAME" | "UNKNOWN";
-    matchId?: string;
-    mapId?: string;
-    queueId?: string;
-    players?: any[];
-    teamSide?: string;
-  }>({ state: "UNKNOWN" });
-  const [showAssistant, setShowAssistant] = useState(true); // User preference to hide it temporarily
+
+  const { valorantState, showAssistant, setShowAssistant } = useValorantState();
 
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
@@ -124,23 +118,6 @@ const App: React.FC = () => {
       setTimeout(() => setIsInitialLoading(false), remaining);
     };
     init();
-
-    // Valorant State Listener
-    const unsubVal = window.ipc.on("valorant-state", (_e, data: any) => {
-      // Only auto-show assistant when STATE changes, not on every data update
-      const prevState = valorantState.state;
-      const newState = data.state;
-
-      setValorantState(data);
-
-      // Auto-show assistant only when transitioning from UNKNOWN to an active state
-      if (prevState === "UNKNOWN" && (newState === "MENUS" || newState === "PREGAME" || newState === "INGAME")) {
-        setShowAssistant(true);
-      }
-    });
-    return () => {
-      unsubVal();
-    };
   }, []);
 
   const confirmLaunch = async () => {

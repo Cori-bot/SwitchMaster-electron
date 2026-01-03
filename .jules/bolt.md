@@ -1,0 +1,3 @@
+## 2024-05-24 - Stale Closures in Event Listeners
+**Learning:** React state variables inside `useEffect` with `window.ipc.on` (or other persistent event listeners) are stale if the dependency array is empty. This not only causes logic bugs (always seeing initial state) but can lead to performance issues if the listener repeatedly triggers re-renders assuming state hasn't changed, or triggers side effects based on incorrect state comparisons.
+**Action:** Always use a `useRef` to track state for event listeners, or use the functional update form of `setState` correctly. For performance, verify data actually changed before calling `setState` in high-frequency events.
