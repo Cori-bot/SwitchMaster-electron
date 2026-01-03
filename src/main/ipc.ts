@@ -24,7 +24,7 @@ export function setupIpcHandlers(
 
   registerAccountHandlers(getWin);
   registerConfigHandlers();
-  registerRiotHandlers(context.launchGame);
+  registerRiotHandlers(getWin, context.launchGame, context.getStatus);
   registerSecurityHandlers();
   registerMiscHandlers(getWin, context);
   registerUpdateHandlers(getWin);

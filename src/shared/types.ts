@@ -18,6 +18,7 @@ export interface Config {
   };
   hasSeenOnboarding: boolean;
   valorantAutoLockAgent?: string | null;
+  enableGPU?: boolean;
 }
 
 export interface Account {

@@ -37,6 +37,7 @@ let appConfig: Config = {
     pinHash: null,
   },
   hasSeenOnboarding: false,
+  enableGPU: false,
 };
 
 export async function ensureAppData(): Promise<void> {
@@ -58,6 +59,24 @@ export async function loadConfig(): Promise<Config> {
     return appConfig;
   } catch (e) {
     devError("Error loading config:", e);
+    return appConfig;
+  }
+}
+
+export function loadConfigSync(): Config {
+  const { CONFIG_FILE } = getPaths();
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      const content = fs.readFileSync(CONFIG_FILE, "utf-8");
+      if (content && content.trim() !== "") {
+        const savedConfig = JSON.parse(content);
+        appConfig = { ...appConfig, ...savedConfig };
+        return appConfig;
+      }
+    }
+    return appConfig;
+  } catch (e) {
+    devError("Error loading config sync:", e);
     return appConfig;
   }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, Transition } from "framer-motion";
 import Sidebar from "./components/Sidebar";
 import TopBar from "./components/TopBar";
@@ -13,6 +13,7 @@ import {
   UpdateModal,
   LaunchConfirmModal,
   DeleteConfirmModal,
+  GPUConfirmModal,
 } from "./components/AppModals";
 import { useAccounts } from "./hooks/useAccounts";
 import { useConfig } from "./hooks/useConfig";
@@ -57,6 +58,11 @@ const App: React.FC = () => {
     gameType: "league" | "valorant";
   }>({ isOpen: false, accountId: null, gameType: "valorant" });
 
+  const [gpuConfirm, setGpuConfirm] = useState<{
+    isOpen: boolean;
+    targetValue: boolean;
+  }>({ isOpen: false, targetValue: false });
+
   const {
     accounts,
     addAccount,
@@ -70,7 +76,7 @@ const App: React.FC = () => {
   const { notifications, showSuccess, showError, removeNotification } =
     useNotifications();
 
-  const handleSwitch = async (accountId: string, askToLaunch = true) => {
+  const handleSwitch = useCallback(async (accountId: string, askToLaunch = true) => {
     if (askToLaunch) {
       const account = accounts.find((a) => a.id === accountId);
       setLaunchConfirm({
@@ -85,14 +91,13 @@ const App: React.FC = () => {
       const switchResult = await window.ipc.invoke("switch-account", accountId);
       if (switchResult.success) {
         showSuccess("Changement de compte réussi");
-        void refreshStatus();
       } else {
         showError(switchResult.error || "Erreur lors du changement de compte");
       }
     } catch (err) {
       showError("Erreur de communication avec le système");
     }
-  };
+  }, [accounts, showSuccess, showError]);
 
   const {
     status,
@@ -151,7 +156,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleAddOrUpdate = async (accountData: Partial<Account>) => {
+  const handleAddOrUpdate = useCallback(async (accountData: Partial<Account>) => {
     try {
       if (accountData.id) {
         await updateAccount(accountData as Account);
@@ -160,35 +165,35 @@ const App: React.FC = () => {
         await addAccount(accountData);
         showSuccess("Compte ajouté avec succès");
       }
-      refreshAccounts();
+      // refreshAccounts() supprimé car géré par le hook via IPC
     } catch (err) {
       showError("Erreur lors de l'enregistrement");
     }
-  };
+  }, [updateAccount, addAccount, showSuccess, showError]);
 
-  const handleDelete = (accountId: string) => {
+  const handleDelete = useCallback((accountId: string) => {
     setDeleteConfirm({ isOpen: true, accountId });
-  };
+  }, []);
 
-  const confirmDelete = async () => {
+  const confirmDelete = useCallback(async () => {
     if (deleteConfirm.accountId) {
       await deleteAccount(deleteConfirm.accountId);
       showSuccess("Compte supprimé");
       setDeleteConfirm({ isOpen: false, accountId: null });
     }
-  };
+  }, [deleteConfirm.accountId, deleteAccount, showSuccess]);
 
-  const handleOpenAdd = () => {
+  const handleOpenAdd = useCallback(() => {
     setEditingAccount(null);
     setIsAddModalOpen(true);
-  };
+  }, []);
 
-  const handleOpenEdit = (account: Account) => {
+  const handleOpenEdit = useCallback((account: Account) => {
     setEditingAccount(account);
     setIsAddModalOpen(true);
-  };
+  }, []);
 
-  const handleVerifyPin = async (pin: string) => {
+  const handleVerifyPin = useCallback(async (pin: string) => {
     if (securityMode === "disable") {
       const success = await disablePin(pin);
       if (success) {
@@ -207,27 +212,37 @@ const App: React.FC = () => {
       return true;
     }
     return false;
-  };
+  }, [securityMode, disablePin, verifyPin, showSuccess, refreshConfig]);
 
-  const handleSetPin = async (pin: string) => {
+  const handleSetPin = useCallback(async (pin: string) => {
     const success = await setPin(pin);
     if (success) {
       setSecurityMode(null);
       showSuccess("Code PIN configuré avec succès");
       await refreshConfig();
     }
-  };
+  }, [setPin, showSuccess, refreshConfig]);
 
-  const handleUpdateConfig = async (newConfig: Partial<Config>) => {
+  const handleUpdateConfig = useCallback(async (newConfig: Partial<Config>) => {
     try {
       await updateConfig(newConfig);
       showSuccess("Paramètres mis à jour");
     } catch (err) {
       showError("Erreur de mise à jour");
     }
-  };
+  }, [updateConfig, showSuccess, showError]);
 
-  const handleToggleFavorite = async (account: Account) => {
+  const confirmGPUChange = useCallback(async () => {
+    try {
+      await updateConfig({ enableGPU: gpuConfirm.targetValue });
+      setGpuConfirm({ ...gpuConfirm, isOpen: false });
+      window.ipc.invoke("restart-app");
+    } catch (err) {
+      showError("Erreur lors de la mise à jour");
+    }
+  }, [gpuConfirm, updateConfig, showError]);
+
+  const handleToggleFavorite = useCallback(async (account: Account) => {
     try {
       // Appel avec un payload minimal pour éviter tout problème de re-chiffrement en prod
       await updateAccount({
@@ -241,7 +256,7 @@ const App: React.FC = () => {
     } catch (err) {
       showError("Erreur lors de la mise à jour du favori");
     }
-  };
+  }, [updateAccount, showSuccess, showError]);
 
   return (
     <div className="flex h-screen bg-[#0a0a0a] text-white overflow-hidden font-sans">
@@ -313,6 +328,9 @@ const App: React.FC = () => {
                   onCheckUpdates={() => window.ipc.invoke("check-updates")}
                   onOpenPinModal={() => setSecurityMode("set")}
                   onDisablePin={() => setSecurityMode("disable")}
+                  onOpenGPUModal={(val) =>
+                    setGpuConfirm({ isOpen: true, targetValue: val })
+                  }
                 />
               )}
             </motion.div>
@@ -375,6 +393,15 @@ const App: React.FC = () => {
         onConfirm={confirmDelete}
         onCancel={() => setDeleteConfirm({ isOpen: false, accountId: null })}
       />
+
+      {gpuConfirm.isOpen && (
+        <GPUConfirmModal
+          isOpen={gpuConfirm.isOpen}
+          targetValue={gpuConfirm.targetValue}
+          onConfirm={confirmGPUChange}
+          onCancel={() => setGpuConfirm({ ...gpuConfirm, isOpen: false })}
+        />
+      )}
     </div>
   );
 };

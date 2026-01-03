@@ -8,7 +8,7 @@ import { getConfig } from "./config";
 
 import { devDebug } from "./logger";
 
-const MONITOR_INTERVAL_MS = 10000;
+const MONITOR_INTERVAL_MS = 30000;
 const GAME_LAUNCH_DELAY_MS = 3000;
 
 export async function monitorRiotProcess(

@@ -120,6 +120,7 @@ interface SettingsProps {
   onOpenPinModal: () => void;
   onDisablePin: () => void;
   onCheckUpdates: () => void;
+  onOpenGPUModal: (targetValue: boolean) => void;
 }
 
 const Settings: React.FC<SettingsProps> = ({
@@ -129,6 +130,7 @@ const Settings: React.FC<SettingsProps> = ({
   onOpenPinModal,
   onDisablePin,
   onCheckUpdates,
+  onOpenGPUModal,
 }) => {
   if (!config) return null;
 
@@ -201,6 +203,13 @@ const Settings: React.FC<SettingsProps> = ({
             checked={config.startMinimized}
             onChange={handleStartMinimizedChange}
             disabled={!config.autoStart}
+          />
+          <Checkbox
+            id="enableGPU"
+            label="Activer l'accélération matérielle"
+            subLabel="Utilise le GPU pour soulager le CPU (Nécessite un redémarrage)."
+            checked={config.enableGPU ?? false}
+            onChange={(val) => onOpenGPUModal(val)}
           />
         </div>
       </SettingItem>

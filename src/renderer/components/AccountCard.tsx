@@ -217,4 +217,4 @@ const AccountCard: React.FC<AccountCardProps> = ({
   );
 };
 
-export default AccountCard;
+export default React.memo(AccountCard);

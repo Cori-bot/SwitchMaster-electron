@@ -1,7 +1,7 @@
 import { app, BrowserWindow, protocol, net } from "electron";
 import path from "path";
 import { pathToFileURL } from "url";
-import { ensureAppData, loadConfig, getConfig } from "./config";
+import { ensureAppData, loadConfig, getConfig, loadConfigSync } from "./config";
 
 // Register privileged schemes for custom protocols
 protocol.registerSchemesAsPrivileged([
@@ -34,13 +34,19 @@ import { devLog, devError } from "./logger";
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
 
-const STATS_REFRESH_INTERVAL_MS = 60000;
+const STATS_REFRESH_INTERVAL_MS = 120000;
 const INITIAL_STATS_REFRESH_DELAY_MS = 5000;
 
 // Set App Name and UserData path before any complex logic
 app.name = "switchmaster";
 const userDataPath = path.join(app.getPath("appData"), "switchmaster");
 app.setPath("userData", userDataPath);
+
+// Chargement synchrone de la config pour GPU
+const initialConfig = loadConfigSync();
+if (!initialConfig.enableGPU) {
+  app.disableHardwareAcceleration();
+}
 
 // Single Instance Lock - Appel immédiat au niveau racine
 const gotTheLock = app.requestSingleInstanceLock();
@@ -73,6 +79,9 @@ async function initApp() {
     }
     devLog("Mode développement:", isDev);
 
+    devLog("Chargement de la configuration...");
+    await loadConfig();
+
     devLog("Attente de app.whenReady()...");
     await app.whenReady();
     devLog("App ready");
@@ -101,8 +110,6 @@ async function initApp() {
       }
     });
     await ensureAppData();
-    devLog("Chargement de la configuration...");
-    await loadConfig();
 
     devLog("Configuration des IPC handlers...");
     // Register IPC handlers ALWAYS BEFORE window creation

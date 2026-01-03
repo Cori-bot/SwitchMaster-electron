@@ -102,4 +102,9 @@ export function registerMiscHandlers(
   safeHandle("minimize-app", () => {
     getMainWindow()?.minimize();
   });
+
+  safeHandle("restart-app", () => {
+    app.relaunch();
+    app.exit();
+  });
 }

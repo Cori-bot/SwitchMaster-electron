@@ -33,23 +33,18 @@ export const useAccounts = () => {
 
   const addAccount = async (data: Partial<Account>) => {
     await window.ipc.invoke("add-account", data);
-    await refreshAccounts();
   };
 
   const updateAccount = async (data: Account) => {
     await window.ipc.invoke("update-account", data);
-    await refreshAccounts();
   };
 
   const deleteAccount = async (id: string) => {
     await window.ipc.invoke("delete-account", id);
-    await refreshAccounts();
   };
 
   const reorderAccounts = async (ids: string[]) => {
     await window.ipc.invoke("reorder-accounts", ids);
-    // Optimistic update could be done here
-    await refreshAccounts();
   };
 
   return {

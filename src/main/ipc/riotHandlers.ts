@@ -1,4 +1,4 @@
-import { dialog } from "electron";
+import { BrowserWindow, dialog } from "electron";
 import path from "path";
 import { getConfig, saveConfig } from "../config";
 import { getAccountCredentials } from "../accounts";
@@ -11,7 +11,9 @@ import {
 import { safeHandle } from "./utils";
 
 export function registerRiotHandlers(
+  getWin: () => BrowserWindow | null,
   launchGame: (gameId: "league" | "valorant") => Promise<void>,
+  getStatus: () => Promise<any>,
 ) {
   safeHandle("select-riot-path", async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -39,6 +41,13 @@ export function registerRiotHandlers(
     );
 
     await saveConfig({ lastAccountId: id as string });
+
+    const status = await getStatus();
+    const win = getWin();
+    if (win && !win.isDestroyed()) {
+      win.webContents.send("status-updated", status);
+    }
+
     return { success: true, id };
   });
 
